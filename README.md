@@ -155,4 +155,4 @@ flutter build apk     # gerar APK release
 ---
 
 ## Observações
-- O app está configurado para salvar recibos em base64 no Firestore.  
+- O app está configurado para salvar recibos em base64 no Firestore devido ao custo adicional para usar o Firebase Storage. 
