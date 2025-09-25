@@ -82,14 +82,6 @@ FIREBASE_ANDROID_APP_ID=
 FIREBASE_ANDROID_MESSAGING_SENDER_ID=
 FIREBASE_ANDROID_PROJECT_ID=
 FIREBASE_ANDROID_STORAGE_BUCKET=
-
-# Firebase iOS
-FIREBASE_IOS_API_KEY=
-FIREBASE_IOS_APP_ID=
-FIREBASE_IOS_MESSAGING_SENDER_ID=
-FIREBASE_IOS_PROJECT_ID=
-FIREBASE_IOS_STORAGE_BUCKET=
-FIREBASE_IOS_BUNDLE_ID=com.miker.bancoagil
 ```
 
 Copiar o modelo:  
@@ -109,9 +101,6 @@ flutter pub get
 # rodar no emulador/dispositivo
 flutter run
 ```
-
-- Para iOS pode ser necessário rodar `cd ios && pod install` antes.  
-
 ---
 
 ## Funcionalidades
