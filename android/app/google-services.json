@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "337742259212",
+    "project_id": "banco-agil-app",
+    "storage_bucket": "banco-agil-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337742259212:android:b25ed5ee26356a62ea3a29",
+        "android_client_info": {
+          "package_name": "com.example.image_gallery_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDk3vXDG2LZT56f0uxUnQe3OiKx0FzGrDE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337742259212:android:bd38032cbfd611a5ea3a29",
+        "android_client_info": {
+          "package_name": "com.miker.bancoagil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDk3vXDG2LZT56f0uxUnQe3OiKx0FzGrDE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"banco-agil-app","appId":"1:337742259212:android:bd38032cbfd611a5ea3a29","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"banco-agil-app","configurations":{"android":"1:337742259212:android:bd38032cbfd611a5ea3a29","ios":"1:337742259212:ios:780f206c812d5a36ea3a29"}}}}}}
