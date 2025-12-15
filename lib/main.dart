@@ -1,10 +1,10 @@
-import 'package:bancoagil/state/user_provider.dart';
 import 'package:bancoagil/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'firebase_options.dart';
 import 'pages/login_page.dart';
@@ -25,6 +25,15 @@ import 'features/auth/domain/usecases/observe_auth_state.dart';
 import 'features/auth/domain/usecases/sign_in.dart';
 import 'features/auth/domain/usecases/sign_out.dart';
 import 'features/auth/domain/usecases/sign_up.dart';
+
+// User/Profile Clean (ajuste os paths conforme sua estrutura)
+import 'features/user/data/datasources/firestore_user_profile_datasource.dart';
+import 'features/user/data/repositories/user_repository_impl.dart';
+import 'features/user/domain/repositories/user_repository.dart';
+import 'features/user/domain/usecases/get_user.dart';
+import 'features/user/domain/usecases/observe_user.dart';
+import 'features/user/domain/usecases/update_user_profile.dart';
+import 'features/user/presentation/providers/user_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,20 +84,25 @@ class MyApp extends StatelessWidget {
         // -------------------------
         // Auth (Clean Architecture)
         // -------------------------
-        Provider(create: (_) => FirebaseAuthDataSource()),
-        Provider(create: (_) => FirestoreUserDataSource()),
+        Provider<FirebaseAuthDataSource>(
+          create: (_) => FirebaseAuthDataSource(),
+        ),
+        Provider<FirestoreUserDataSource>(
+          create: (_) => FirestoreUserDataSource(),
+        ),
         Provider<AuthRepository>(
           create: (ctx) => AuthRepositoryImpl(
             authDs: ctx.read<FirebaseAuthDataSource>(),
             userDs: ctx.read<FirestoreUserDataSource>(),
           ),
         ),
-        Provider(create: (ctx) => ObserveAuthState(ctx.read<AuthRepository>())),
-        Provider(create: (ctx) => SignIn(ctx.read<AuthRepository>())),
-        Provider(create: (ctx) => SignUp(ctx.read<AuthRepository>())),
-        Provider(create: (ctx) => SignOut(ctx.read<AuthRepository>())),
-
-        ChangeNotifierProvider(
+        Provider<ObserveAuthState>(
+          create: (ctx) => ObserveAuthState(ctx.read<AuthRepository>()),
+        ),
+        Provider<SignIn>(create: (ctx) => SignIn(ctx.read<AuthRepository>())),
+        Provider<SignUp>(create: (ctx) => SignUp(ctx.read<AuthRepository>())),
+        Provider<SignOut>(create: (ctx) => SignOut(ctx.read<AuthRepository>())),
+        ChangeNotifierProvider<AuthProvider>(
           create: (ctx) => AuthProvider(
             observeAuthState: ctx.read<ObserveAuthState>(),
             signInUseCase: ctx.read<SignIn>(),
@@ -100,13 +114,14 @@ class MyApp extends StatelessWidget {
         // -------------------------
         // Filtros globais
         // -------------------------
-        ChangeNotifierProvider(create: (_) => FiltersProvider()),
+        ChangeNotifierProvider<FiltersProvider>(
+          create: (_) => FiltersProvider(),
+        ),
 
         // -------------------------
         // Transactions (já funcionando)
         // -------------------------
-        Provider(create: (_) => TransactionsService()),
-
+        Provider<TransactionsService>(create: (_) => TransactionsService()),
         ChangeNotifierProxyProvider3<
           AuthProvider,
           FiltersProvider,
@@ -123,10 +138,35 @@ class MyApp extends StatelessWidget {
         ),
 
         // -------------------------
-        // UserProvider (saldo / nome / cpf)
+        // User/Profile (Clean Architecture)
         // -------------------------
+        Provider<FirebaseFirestore>(create: (_) => FirebaseFirestore.instance),
+
+        Provider<FirestoreUserProfileDataSource>(
+          create: (ctx) =>
+              FirestoreUserProfileDataSourceImpl(ctx.read<FirebaseFirestore>()),
+        ),
+
+        Provider<UserRepository>(
+          create: (ctx) => UserRepositoryImpl(
+            ds: ctx.read<FirestoreUserProfileDataSource>(),
+          ),
+        ),
+
+        Provider<GetUser>(create: (ctx) => GetUser(ctx.read<UserRepository>())),
+        Provider<ObserveUser>(
+          create: (ctx) => ObserveUser(ctx.read<UserRepository>()),
+        ),
+        Provider<UpdateUserProfile>(
+          create: (ctx) => UpdateUserProfile(ctx.read<UserRepository>()),
+        ),
+
         ChangeNotifierProxyProvider<AuthProvider, UserProvider>(
-          create: (_) => UserProvider(),
+          create: (ctx) => UserProvider(
+            getUser: ctx.read<GetUser>(),
+            observeUser: ctx.read<ObserveUser>(),
+            updateUserProfile: ctx.read<UpdateUserProfile>(),
+          ),
           update: (_, auth, up) => up!..apply(auth.user?.uid),
         ),
       ],

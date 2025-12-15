@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../widgets/sign_out_action.dart';
 import '../widgets/common/totals_bar.dart';
-import '../state/user_provider.dart';
+import '../features/user/presentation/providers/user_provider.dart';
 import '../utils/formatters.dart';
 import '../state/filters_provider.dart';
 import '../state/transactions_provider.dart';
@@ -358,7 +358,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
               loading: tp.totalsLoading,
               income: tp.sumIncome,
               expense: tp.sumExpense,
-              balance: up.balance,
+              balance: (up.user?.balance ?? 0).toDouble(),
             ),
           ),
           Expanded(

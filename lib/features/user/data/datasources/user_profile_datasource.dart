@@ -1,50 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../utils/cpf_validator.dart';
-import '../../domain/entities/user_profile.dart';
 
-class UserProfileService {
-  final _db = FirebaseFirestore.instance;
+abstract class UserProfileDataSource {
+  Future<Map<String, dynamic>?> getProfileByUid(String uid);
 
-  CollectionReference get _users => _db.collection('users');
-  CollectionReference get _cpfIndex => _db.collection('cpfIndex');
+  /// Cria/atualiza o perfil do usuário (uid vem de fora)
+  /// e garante unicidade do CPF via cpfIndex/{cpf}
+  Future<void> upsertProfile({
+    required String uid,
+    required String email,
+    required String fullName,
+    required String cpfMaskedOrDigits,
+  });
+}
 
-  Future<UserProfile?> getCurrentProfile() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
+class UserProfileDataSourceImpl implements UserProfileDataSource {
+  final FirebaseFirestore db;
+
+  UserProfileDataSourceImpl(this.db);
+
+  CollectionReference<Map<String, dynamic>> get _users =>
+      db.collection('users');
+  CollectionReference<Map<String, dynamic>> get _cpfIndex =>
+      db.collection('cpfIndex');
+
+  @override
+  Future<Map<String, dynamic>?> getProfileByUid(String uid) async {
     final doc = await _users.doc(uid).get();
     if (!doc.exists) return null;
-    return UserProfile.fromDoc(doc);
+    return doc.data();
   }
 
-  /// Cria/atualiza o perfil do usuário logado e mantém unicidade do CPF via cpfIndex/{cpf}
-  Future<void> upsertOwnProfile({
+  @override
+  Future<void> upsertProfile({
+    required String uid,
+    required String email,
     required String fullName,
     required String cpfMaskedOrDigits,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw 'Não autenticado.';
+    if (uid.trim().isEmpty) throw 'UID inválido.';
+    final cleanEmail = email.trim().toLowerCase();
 
     final newCpf = CpfValidator.onlyDigits(cpfMaskedOrDigits);
     if (!CpfValidator.isValid(newCpf)) {
       throw 'CPF inválido (11 dígitos).';
     }
 
-    final uid = user.uid;
     final userRef = _users.doc(uid);
 
-    await _db.runTransaction((tx) async {
+    await db.runTransaction((tx) async {
       final userSnap = await tx.get(userRef);
-      final currentData = (userSnap.data() as Map<String, dynamic>?) ?? {};
+      final currentData = userSnap.data() ?? <String, dynamic>{};
       final oldCpf = (currentData['cpf'] ?? '').toString();
 
       // Verifica unicidade do novo CPF
       final idxRef = _cpfIndex.doc(newCpf);
       final idxSnap = await tx.get(idxRef);
+
       if (idxSnap.exists) {
-        final owner = (idxSnap.data() as Map<String, dynamic>)['uid']
-            ?.toString();
-        if (owner != uid) {
+        final owner = (idxSnap.data()?['uid'])?.toString();
+        if (owner != null && owner != uid) {
           throw 'Esse CPF já está em uso por outra conta.';
         }
       }
@@ -53,8 +68,9 @@ class UserProfileService {
       tx.set(userRef, {
         'fullName': fullName.trim(),
         'cpf': newCpf,
-        'email': user.email?.toLowerCase() ?? '',
-        'balance': (currentData['balance'] ?? 0).toDouble(),
+        'email': cleanEmail,
+        // mantém saldo existente (se não existir, cria 0)
+        'balance': ((currentData['balance'] ?? 0) as num).toDouble(),
         'createdAt': currentData['createdAt'] ?? FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -65,15 +81,15 @@ class UserProfileService {
         'cpf': newCpf,
         'fullName': fullName.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
       // Se CPF antigo for diferente e pertence a mim, remove índice antigo
       if (oldCpf.isNotEmpty && oldCpf != newCpf) {
         final oldIdxRef = _cpfIndex.doc(oldCpf);
         final oldIdxSnap = await tx.get(oldIdxRef);
+
         if (oldIdxSnap.exists) {
-          final owner = (oldIdxSnap.data() as Map<String, dynamic>)['uid']
-              ?.toString();
+          final owner = (oldIdxSnap.data()?['uid'])?.toString();
           if (owner == uid) {
             tx.delete(oldIdxRef);
           }

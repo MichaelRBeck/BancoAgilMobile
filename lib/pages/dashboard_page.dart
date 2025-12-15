@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../utils/formatters.dart';
 import '../state/transactions_provider.dart';
 import '../state/filters_provider.dart';
-import '../state/user_provider.dart';
+import '../features/user/presentation/providers/user_provider.dart';
 import '../widgets/sign_out_action.dart';
 import '../services/analytics.dart';
 import '../widgets/charts/line_chart_widget.dart';
@@ -100,7 +100,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final transferNet = tp.sumTransferNet;
 
     // Saldo real (do Firestore) via provider
-    final balanceDb = up.balance;
+    final double balanceDb = (up.user?.balance ?? 0).toDouble();
 
     return Scaffold(
       appBar: AppBar(
