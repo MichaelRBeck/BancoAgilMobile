@@ -1,5 +1,6 @@
 // lib/services/analytics.dart
-import '../features/transactions/domain/entities/transaction.dart';
+
+import '../features/transactions/data/models/transaction_model.dart';
 
 class AnalyticsService {
   static DateTime monthKey(DateTime d) => DateTime(d.year, d.month);
@@ -12,9 +13,9 @@ class AnalyticsService {
   ) {
     final map = <DateTime, double>{};
     for (final t in items) {
-      if (type.isNotEmpty && (t.type) != type) continue;
+      if (type.isNotEmpty && t.type != type) continue;
       final k = monthKey(t.date);
-      final v = (t.amount).toDouble();
+      final v = t.amount.toDouble();
       map[k] = (map[k] ?? 0) + v;
     }
     return map;
@@ -58,8 +59,8 @@ class AnalyticsService {
     }
 
     for (final t in txs) {
-      final rawType = (t.type).toString();
-      final v = (t.amount).toDouble();
+      final rawType = t.type.toString();
+      final v = t.amount.toDouble();
       final absV = v.abs();
 
       if (isTransfer(rawType)) {
@@ -76,10 +77,11 @@ class AnalyticsService {
       }
 
       // fallback por sinal
-      if (v >= 0)
+      if (v >= 0) {
         receitas += absV;
-      else
+      } else {
         despesas += absV;
+      }
     }
 
     return {

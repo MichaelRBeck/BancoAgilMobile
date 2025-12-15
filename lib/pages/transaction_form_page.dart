@@ -1,18 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
-import '../features/transactions/presentation/providers/transactions_provider.dart';
-import '../features/transactions/domain/entities/transaction.dart';
-import '../features/transactions/data/datasources/transactions_remote_datasource.dart';
+import '../state/transactions_provider.dart';
+import '../services/transactions_service.dart';
 import '../services/transfer_local_service.dart';
 import '../utils/cpf_input_formatter.dart';
 import '../widgets/common/receipt_attachment.dart';
+
+import '../features/transactions/data/models/transaction_model.dart';
 
 class TransactionFormPage extends StatefulWidget {
   final TransactionModel? editing; // se vier preenchido, estamos editando
@@ -132,7 +134,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
   }
 
   Future<double> _getUserBalance(String uid) async {
-    final snap = await FirebaseFirestore.instance
+    final snap = await fs.FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .get();
@@ -147,9 +149,9 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
 
   Future<void> _incUserBalance(String uid, double delta) async {
     if (delta == 0) return;
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'balance': FieldValue.increment(delta),
-      'updatedAt': FieldValue.serverTimestamp(),
+    await fs.FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'balance': fs.FieldValue.increment(delta),
+      'updatedAt': fs.FieldValue.serverTimestamp(),
     });
   }
 
@@ -166,6 +168,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
+
     if (!mounted) return;
     setState(() => _saving = true);
 
@@ -176,12 +179,12 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       if (_type == 'transfer') {
         if (_isEditing) {
           final old = widget.editing!;
-          await FirebaseFirestore.instance
+          await fs.FirebaseFirestore.instance
               .collection('transactions')
               .doc(old.id)
               .update({
                 'notes': _notes ?? '',
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': fs.FieldValue.serverTimestamp(),
               });
 
           if (!mounted) return;
@@ -217,10 +220,8 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
             ? _deltaFor(widget.editing!.type, widget.editing!.amount)
             : 0.0;
         final newDelta = _deltaFor(_type, _amount ?? 0);
-        final projected =
-            curr -
-            oldDelta +
-            newDelta; // remove efeito antigo (se houver) e aplica o novo
+        final projected = curr - oldDelta + newDelta;
+
         if (projected < 0) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -322,21 +323,15 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
               DropdownButtonFormField<String>(
                 value: _type,
                 items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem<String>(
-                    value: 'income',
-                    child: Text('Receita'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'expense',
-                    child: Text('Despesa'),
-                  ),
-                  DropdownMenuItem<String>(
+                  DropdownMenuItem(value: 'income', child: Text('Receita')),
+                  DropdownMenuItem(value: 'expense', child: Text('Despesa')),
+                  DropdownMenuItem(
                     value: 'transfer',
                     child: Text('Transferência'),
                   ),
                 ],
                 onChanged: _isEditingTransfer
-                    ? null // bloqueia troca de tipo ao editar transferência
+                    ? null
                     : (String? v) => setState(() => _type = v!),
                 decoration: const InputDecoration(labelText: 'Tipo'),
               ),
@@ -372,7 +367,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                 ),
                 onChanged: (v) =>
                     _amount = double.tryParse(v.replaceAll(',', '.')),
-                enabled: !(_isEditingTransfer),
+                enabled: !_isEditingTransfer,
               ),
               const SizedBox(height: 12),
 
@@ -385,7 +380,6 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
               ),
               const SizedBox(height: 12),
 
-              // Recibo: oculto em transfer
               if (!isTransfer) ...[
                 ReceiptAttachment(
                   receiptBase64: _receiptBase64,
@@ -398,8 +392,6 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-
-              const SizedBox(height: 24),
 
               const SizedBox(height: 24),
               SizedBox(

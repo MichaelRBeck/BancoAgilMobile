@@ -2,8 +2,8 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-// ajuste o caminho conforme sua estrutura de pastas
-import '../../features/transactions/domain/entities/transaction.dart';
+// ✅ use o Model (compatível com a UI atual)
+import '../../features/transactions/data/models/transaction_model.dart';
 
 class _LegendItem extends StatelessWidget {
   final Color color;

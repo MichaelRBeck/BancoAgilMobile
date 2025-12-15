@@ -1,22 +1,26 @@
 import 'dart:async';
+
 import 'package:bancoagil/utils/animated_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../widgets/sign_out_action.dart';
-import '../../../../widgets/common/totals_bar.dart';
-import '../../../profile/presentation/providers/user_provider.dart';
-import '../../domain/entities/transaction.dart';
-import '../../../../utils/formatters.dart';
-import '../../../../state/filters_provider.dart';
-import '../providers/transactions_provider.dart';
-import '../../../../pages/transaction_form_page.dart';
-import '../../../../utils/cpf_input_formatter.dart';
+import '../widgets/sign_out_action.dart';
+import '../widgets/common/totals_bar.dart';
+import '../state/user_provider.dart';
+import '../utils/formatters.dart';
+import '../state/filters_provider.dart';
+import '../state/transactions_provider.dart';
+import 'transaction_form_page.dart';
+import '../utils/cpf_input_formatter.dart';
+
+// ✅ Import correto do Model (UI continua usando Model por enquanto)
+import '../features/transactions/data/models/transaction_model.dart';
 
 class _Debouncer {
   final Duration delay;
   Timer? _t;
   _Debouncer(this.delay);
+
   void call(void Function() fn) {
     _t?.cancel();
     _t = Timer(delay, fn);
@@ -124,6 +128,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         ],
       ),
     );
+
     if (ok == true) {
       await context.read<TransactionsProvider>().delete(t.id);
       if (mounted) {
@@ -136,20 +141,19 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
   // Aplica ordenação local sobre a lista carregada do provider
   List<TransactionModel> _sortedItems(List<TransactionModel> items) {
-    // Firestore já vem em "mais recentes" normalmente, mas garantimos aqui.
     final list = [...items];
     switch (_order) {
       case _OrderMode.dataDesc:
-        list.sort((a, b) => b.date.compareTo(a.date)); // mais recentes primeiro
+        list.sort((a, b) => b.date.compareTo(a.date));
         break;
       case _OrderMode.dataAsc:
-        list.sort((a, b) => a.date.compareTo(b.date)); // mais antigos primeiro
+        list.sort((a, b) => a.date.compareTo(b.date));
         break;
       case _OrderMode.valorDesc:
-        list.sort((a, b) => b.amount.compareTo(a.amount)); // maior primeiro
+        list.sort((a, b) => b.amount.compareTo(a.amount));
         break;
       case _OrderMode.valorAsc:
-        list.sort((a, b) => a.amount.compareTo(b.amount)); // menor primeiro
+        list.sort((a, b) => a.amount.compareTo(b.amount));
         break;
     }
     return list;
@@ -176,7 +180,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
       }
     }
 
-    // Controles prontos (sem layout)
     final tipoField = SizedBox(
       width: 200,
       child: DropdownButtonFormField<String>(
@@ -275,7 +278,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
       child: const Text('Limpar'),
     );
 
-    // Layout responsivo
     return Card(
       margin: const EdgeInsets.all(12),
       child: Padding(
@@ -285,7 +287,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
             final isNarrow = constraints.maxWidth < 600;
 
             if (isNarrow) {
-              // Coluna (100% de largura), sem overflow
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -308,7 +309,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
               );
             }
 
-            // Largura ampla: Wrap organizado
             return Wrap(
               spacing: 12,
               runSpacing: 8,
@@ -330,7 +330,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
   @override
   Widget build(BuildContext context) {
     final tp = context.watch<TransactionsProvider>();
-    final up = context.watch<UserProvider>(); // saldo do Firestore
+    final up = context.watch<UserProvider>();
+
     final items = _sortedItems(tp.items);
 
     return Scaffold(
@@ -350,19 +351,16 @@ class _TransactionsPageState extends State<TransactionsPage> {
       ),
       body: Column(
         children: [
-          // Filtros/Ordenação responsivos
           _buildFiltersBar(context),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: TotalsBar(
               loading: tp.totalsLoading,
               income: tp.sumIncome,
               expense: tp.sumExpense,
-              balance: up.balance, // saldo do Firestore
+              balance: up.balance,
             ),
           ),
-
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => context.read<TransactionsProvider>().refresh(),
@@ -377,12 +375,13 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
+
                   final t = items[i];
                   final isTransfer = t.type == 'transfer';
-                  final counterNameOrCpf =
-                      (t.counterpartyName != null &&
-                          t.counterpartyName!.trim().isNotEmpty)
-                      ? t.counterpartyName!
+
+                  final name = t.counterpartyName?.trim();
+                  final counterNameOrCpf = (name != null && name.isNotEmpty)
+                      ? name
                       : (t.counterpartyCpf ?? '');
 
                   return ListTile(

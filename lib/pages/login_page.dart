@@ -1,10 +1,9 @@
-
-
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+
 import '../utils/cpf_input_formatter.dart';
 import '../utils/cpf_validator.dart';
+import '../state/auth_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,21 +43,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _ensureUserDoc(String uid, String email) async {
-    final users = FirebaseFirestore.instance.collection('users');
-    final doc = await users.doc(uid).get();
-    if (!doc.exists) {
-      await users.doc(uid).set({
-        'fullName': '',
-        'cpf': '',
-        'email': email.toLowerCase(),
-        'balance': 0.0,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-  }
-
   Future<void> _submit() async {
     if (!mounted) return;
     setState(() {
@@ -75,11 +59,10 @@ class _LoginPageState extends State<LoginPage> {
       final email = _email.text.trim();
       final pass = _pass.text.trim();
 
+      final auth = context.read<AuthProvider>();
+
       if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: email,
-          password: pass,
-        );
+        await auth.signIn(email: email, password: pass);
       } else {
         final fullName = _fullName.text.trim();
         final cpfInput = _cpf.text.trim();
@@ -87,39 +70,18 @@ class _LoginPageState extends State<LoginPage> {
 
         if (fullName.length < 3) throw Exception('Informe seu nome completo.');
         if (!CpfValidator.isValid(cpfInput)) throw Exception('CPF inválido.');
-        if (pass.length < 6)
+        if (pass.length < 6) {
           throw Exception('Senha deve ter pelo menos 6 caracteres.');
+        }
         if (pass != confirm) throw Exception('As senhas não conferem.');
 
-        final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        await auth.signUp(
           email: email,
           password: pass,
+          fullName: fullName,
+          cpfDigitsOnly: CpfValidator.onlyDigits(cpfInput),
         );
-        final uid = cred.user!.uid;
-
-        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-          'fullName': fullName,
-          'cpf': CpfValidator.onlyDigits(cpfInput),
-          'email': email.toLowerCase(),
-          'balance': 0.0,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        await FirebaseFirestore.instance
-            .collection('cpfIndex')
-            .doc(CpfValidator.onlyDigits(cpfInput))
-            .set({
-              'uid': uid,
-              'fullName': fullName,
-              'cpf': CpfValidator.onlyDigits(cpfInput),
-              'createdAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
       }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.message ?? e.code);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
@@ -146,14 +108,11 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   children: [
                     _AuthBranding(isLogin: _isLogin),
-
                     const SizedBox(height: 16),
-
                     if (_error != null) ...[
                       Text(_error!, style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 8),
                     ],
-
                     Form(
                       key: _form,
                       child: Column(
@@ -188,7 +147,6 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 12),
                           ],
-
                           TextFormField(
                             controller: _email,
                             decoration: const InputDecoration(
@@ -210,13 +168,11 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             obscureText: true,
                             validator: (v) {
-                              if (v == null || v.length < 6) {
+                              if (v == null || v.length < 6)
                                 return 'Mínimo 6 caracteres';
-                              }
                               return null;
                             },
                           ),
-
                           if (!_isLogin) ...[
                             const SizedBox(height: 12),
                             TextFormField(
@@ -230,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
                                   : null,
                             ),
                           ],
-
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
@@ -291,10 +246,9 @@ class _AuthBranding extends StatelessWidget {
       ),
     );
 
-    // 👉 Define imagens diferentes para login e cadastro
     final imgPath = isLogin
-        ? 'assets/finance.jpg' // imagem usada na tela de login
-        : 'assets/finance_register.jpg'; // imagem usada na tela de cadastro
+        ? 'assets/finance.jpg'
+        : 'assets/finance_register.jpg';
 
     return Column(
       children: [

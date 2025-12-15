@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../utils/formatters.dart';
-import '../features/transactions/presentation/providers/transactions_provider.dart';
+import '../state/transactions_provider.dart';
 import '../state/filters_provider.dart';
-import '../features/profile/presentation/providers/user_provider.dart';
+import '../state/user_provider.dart';
 import '../widgets/sign_out_action.dart';
 import '../services/analytics.dart';
 import '../widgets/charts/line_chart_widget.dart';
 import '../widgets/charts/pie_chart_widget.dart';
 import '../widgets/common/greeting_header.dart';
 import '../widgets/common/kpi_card.dart';
+import '../features/transactions/data/models/transaction_model.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -83,7 +84,9 @@ class _DashboardPageState extends State<DashboardPage> {
     final filters = context.watch<FiltersProvider>();
     final up = context.watch<UserProvider>(); // <- saldo do Firestore aqui
 
-    final items = tp.items;
+    final List<TransactionModel> items = tp.items
+        .whereType<TransactionModel>()
+        .toList();
 
     // Agregações p/ gráficos
     final incomeByMonth = AnalyticsService.sumByMonth(items, 'income');
@@ -234,11 +237,13 @@ class _DashboardPageState extends State<DashboardPage> {
                             )
                           else
                             ...items.take(3).map((t) {
-                              final isTransfer = t.type == 'transfer';
+                              // t pode ser Transaction/TransactionModel. O acesso é via campos existentes.
+                              final isTransfer = (t.type == 'transfer');
+
+                              final name = t.counterpartyName?.trim();
                               final counterNameOrCpf =
-                                  (t.counterpartyName != null &&
-                                      t.counterpartyName!.trim().isNotEmpty)
-                                  ? t.counterpartyName!
+                                  (name != null && name.isNotEmpty)
+                                  ? name
                                   : (t.counterpartyCpf ?? '');
 
                               return ListTile(

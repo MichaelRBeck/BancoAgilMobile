@@ -1,8 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../domain/entities/transaction.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+
+import '../features/transactions/data/models/transaction_model.dart';
 
 class TransactionsService {
-  final _col = FirebaseFirestore.instance.collection('transactions');
+  final _col = fs.FirebaseFirestore.instance.collection('transactions');
 
   Stream<List<TransactionModel>> streamForUser(String uid) {
     return _col
@@ -14,15 +15,15 @@ class TransactionsService {
         );
   }
 
-  Future<(List<TransactionModel>, DocumentSnapshot?)> fetchPage({
+  Future<(List<TransactionModel>, fs.DocumentSnapshot?)> fetchPage({
     required String uid,
     String? type, // 'income' | 'expense' | 'transfer'
     DateTime? start,
     DateTime? end,
     int limit = 20,
-    DocumentSnapshot? startAfter,
+    fs.DocumentSnapshot? startAfter,
   }) async {
-    Query q = _col
+    fs.Query q = _col
         .where('userId', isEqualTo: uid)
         .orderBy('date', descending: true);
 
@@ -30,10 +31,10 @@ class TransactionsService {
       q = q.where('type', isEqualTo: type.trim());
     }
     if (start != null) {
-      q = q.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start));
+      q = q.where('date', isGreaterThanOrEqualTo: fs.Timestamp.fromDate(start));
     }
     if (end != null) {
-      q = q.where('date', isLessThanOrEqualTo: Timestamp.fromDate(end));
+      q = q.where('date', isLessThanOrEqualTo: fs.Timestamp.fromDate(end));
     }
     if (startAfter != null) {
       q = q.startAfterDocument(startAfter);
@@ -74,32 +75,33 @@ class TransactionsService {
     DateTime? start,
     DateTime? end,
     String? type, // se informado, considera apenas esse tipo
-    String?
-    counterpartyCpf, // se informado e type == 'transfer', filtra transfers por CPF (igual/prefixo)
+    String? counterpartyCpf,
     int chunk = 500,
   }) async {
     double income = 0, expense = 0, transferIn = 0, transferOut = 0;
 
-    Query q = _col
+    fs.Query q = _col
         .where('userId', isEqualTo: uid)
         .orderBy('date', descending: true);
+
     if (start != null) {
-      q = q.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start));
+      q = q.where('date', isGreaterThanOrEqualTo: fs.Timestamp.fromDate(start));
     }
     if (end != null) {
-      q = q.where('date', isLessThanOrEqualTo: Timestamp.fromDate(end));
+      q = q.where('date', isLessThanOrEqualTo: fs.Timestamp.fromDate(end));
     }
 
     String digits(String? s) => (s ?? '').replaceAll(RegExp(r'\D'), '');
     final cpfFilter = digits(counterpartyCpf);
 
-    DocumentSnapshot? cursor;
+    fs.DocumentSnapshot? cursor;
     while (true) {
       final snap =
           await (cursor == null
                   ? q.limit(chunk)
                   : q.startAfterDocument(cursor).limit(chunk))
               .get();
+
       if (snap.docs.isEmpty) break;
 
       for (final d in snap.docs) {

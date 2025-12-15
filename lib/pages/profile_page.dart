@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../../utils/cpf_input_formatter.dart';
-import '../../../../utils/cpf_validator.dart';
+import '../utils/cpf_input_formatter.dart';
+import '../utils/cpf_validator.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});

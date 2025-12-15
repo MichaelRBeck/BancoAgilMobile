@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../domain/entities/transaction.dart';
-import '../../data/datasources/transactions_remote_datasource.dart';
-import '../../../../state/filters_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+
+import '../features/transactions/data/models/transaction_model.dart';
+import '../services/transactions_service.dart';
+import 'filters_provider.dart';
 
 class TransactionsProvider extends ChangeNotifier {
   final TransactionsService service;
@@ -18,7 +19,7 @@ class TransactionsProvider extends ChangeNotifier {
 
   // Estado da lista
   final List<TransactionModel> _items = [];
-  DocumentSnapshot? _lastDoc;
+  fs.DocumentSnapshot? _lastDoc;
   bool _loading = false;
   bool _isEnd = false;
 
@@ -81,9 +82,12 @@ class TransactionsProvider extends ChangeNotifier {
         end: _endDate,
         limit: 20,
       );
+
       final filtered = list.where(_matchesCpf).toList();
       _items.addAll(filtered);
       _lastDoc = last;
+
+      // mesma lógica que você já tinha
       _isEnd = last == null && filtered.length < list.length
           ? false
           : last == null;
@@ -99,6 +103,7 @@ class TransactionsProvider extends ChangeNotifier {
     if (_uid == null || _isEnd || _loading) return;
     _loading = true;
     notifyListeners();
+
     try {
       final (list, last) = await service.fetchPage(
         uid: _uid!,
@@ -108,9 +113,11 @@ class TransactionsProvider extends ChangeNotifier {
         limit: 20,
         startAfter: _lastDoc,
       );
+
       final filtered = list.where(_matchesCpf).toList();
       _items.addAll(filtered);
       _lastDoc = last;
+
       _isEnd = last == null && filtered.length < list.length
           ? false
           : last == null;
@@ -131,6 +138,7 @@ class TransactionsProvider extends ChangeNotifier {
     if (_uid == null) return;
     _totalsLoading = true;
     notifyListeners();
+
     try {
       final t = await service.totalsForPeriod(
         uid: _uid!,
@@ -139,6 +147,7 @@ class TransactionsProvider extends ChangeNotifier {
         type: _type.isEmpty ? null : _type,
         counterpartyCpf: _counterpartyCpf.isEmpty ? null : _counterpartyCpf,
       );
+
       _sumIncome = t.income;
       _sumExpense = t.expense;
       _sumTransferIn = t.transferIn;
