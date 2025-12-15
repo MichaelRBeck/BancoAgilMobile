@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../utils/cpf_validator.dart';
-import '../models/user_profile.dart';
+import '../../../../utils/cpf_validator.dart';
+import '../../domain/entities/user_profile.dart';
 
 class UserProfileService {
   final _db = FirebaseFirestore.instance;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../state/filters_provider.dart';
-import '../../utils/cpf_input_formatter.dart';
+import '../../../../state/filters_provider.dart';
+import '../../../../utils/cpf_input_formatter.dart';
 
 class TransactionsFiltersBar extends StatefulWidget {
   final VoidCallback onPickRange;

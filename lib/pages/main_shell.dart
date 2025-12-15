@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard_page.dart';
-import 'transactions_page.dart';
+import '../features/transactions/presentation/pages/transactions_page.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});

@@ -7,9 +7,9 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../state/transactions_provider.dart';
-import '../models/transaction.dart';
-import '../services/transactions_service.dart';
+import '../features/transactions/presentation/providers/transactions_provider.dart';
+import '../features/transactions/domain/entities/transaction.dart';
+import '../features/transactions/data/datasources/transactions_remote_datasource.dart';
 import '../services/transfer_local_service.dart';
 import '../utils/cpf_input_formatter.dart';
 import '../widgets/common/receipt_attachment.dart';

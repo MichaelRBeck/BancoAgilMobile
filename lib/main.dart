@@ -1,4 +1,4 @@
-import 'package:bancoagil/state/user_provider.dart';
+import 'package:bancoagil/features/profile/presentation/providers/user_provider.dart';
 import 'package:bancoagil/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,10 +8,10 @@ import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'utils/formatters.dart';
 import 'package:provider/provider.dart';
-import 'state/auth_provider.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
 import 'state/filters_provider.dart';
-import 'state/transactions_provider.dart';
-import 'services/transactions_service.dart';
+import 'features/transactions/presentation/providers/transactions_provider.dart';
+import 'features/transactions/data/datasources/transactions_remote_datasource.dart';
 import 'pages/main_shell.dart';
 
 Future<void> main() async {

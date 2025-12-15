@@ -3,15 +3,15 @@ import 'package:bancoagil/utils/animated_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../widgets/sign_out_action.dart';
-import '../widgets/common/totals_bar.dart';
-import '../state/user_provider.dart';
-import '../models/transaction.dart';
-import '../utils/formatters.dart';
-import '../state/filters_provider.dart';
-import '../state/transactions_provider.dart';
-import 'transaction_form_page.dart';
-import '../utils/cpf_input_formatter.dart';
+import '../../../../widgets/sign_out_action.dart';
+import '../../../../widgets/common/totals_bar.dart';
+import '../../../profile/presentation/providers/user_provider.dart';
+import '../../domain/entities/transaction.dart';
+import '../../../../utils/formatters.dart';
+import '../../../../state/filters_provider.dart';
+import '../providers/transactions_provider.dart';
+import '../../../../pages/transaction_form_page.dart';
+import '../../../../utils/cpf_input_formatter.dart';
 
 class _Debouncer {
   final Duration delay;

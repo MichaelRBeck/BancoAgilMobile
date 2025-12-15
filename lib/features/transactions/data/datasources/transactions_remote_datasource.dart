@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/transaction.dart';
+import '../../domain/entities/transaction.dart';
 
 class TransactionsService {
   final _col = FirebaseFirestore.instance.collection('transactions');

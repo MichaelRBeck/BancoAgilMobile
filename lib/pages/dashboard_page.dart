@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../utils/formatters.dart';
-import '../state/transactions_provider.dart';
+import '../features/transactions/presentation/providers/transactions_provider.dart';
 import '../state/filters_provider.dart';
-import '../state/user_provider.dart';
+import '../features/profile/presentation/providers/user_provider.dart';
 import '../widgets/sign_out_action.dart';
 import '../services/analytics.dart';
 import '../widgets/charts/line_chart_widget.dart';

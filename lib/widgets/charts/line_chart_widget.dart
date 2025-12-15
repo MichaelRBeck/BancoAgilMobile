@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 // ajuste o caminho conforme sua estrutura de pastas
-import '../../models/transaction.dart';
+import '../../features/transactions/domain/entities/transaction.dart';
 
 class _LegendItem extends StatelessWidget {
   final Color color;

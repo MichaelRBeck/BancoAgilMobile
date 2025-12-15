@@ -1,5 +1,5 @@
 // lib/services/analytics.dart
-import '../models/transaction.dart';
+import '../features/transactions/domain/entities/transaction.dart';
 
 class AnalyticsService {
   static DateTime monthKey(DateTime d) => DateTime(d.year, d.month);

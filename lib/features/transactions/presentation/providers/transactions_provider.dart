@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/transaction.dart';
-import '../services/transactions_service.dart';
-import 'filters_provider.dart';
+import '../../domain/entities/transaction.dart';
+import '../../data/datasources/transactions_remote_datasource.dart';
+import '../../../../state/filters_provider.dart';
 
 class TransactionsProvider extends ChangeNotifier {
   final TransactionsService service;
