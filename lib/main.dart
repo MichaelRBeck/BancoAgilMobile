@@ -8,15 +8,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'firebase_options.dart';
 import 'pages/login_page.dart';
-import 'utils/formatters.dart';
+import 'core/utils/formatters.dart';
 import 'pages/main_shell.dart';
 
 import 'state/auth_provider.dart';
 import 'state/filters_provider.dart';
 import 'state/transactions_provider.dart';
 import 'services/transactions_service.dart';
+import 'services/transfer_local_service.dart';
 
-// Auth Clean
+// Auth
 import 'features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'features/auth/data/datasources/firestore_user_datasource.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
@@ -26,7 +27,7 @@ import 'features/auth/domain/usecases/sign_in.dart';
 import 'features/auth/domain/usecases/sign_out.dart';
 import 'features/auth/domain/usecases/sign_up.dart';
 
-// User/Profile Clean (ajuste os paths conforme sua estrutura)
+// User/Profile
 import 'features/user/data/datasources/firestore_user_profile_datasource.dart';
 import 'features/user/data/repositories/user_repository_impl.dart';
 import 'features/user/domain/repositories/user_repository.dart';
@@ -34,6 +35,29 @@ import 'features/user/domain/usecases/get_user.dart';
 import 'features/user/domain/usecases/observe_user.dart';
 import 'features/user/domain/usecases/update_user_profile.dart';
 import 'features/user/presentation/providers/user_provider.dart';
+
+// Transactions
+import 'features/transactions/data/datasources/transactions_datasource.dart';
+import 'features/transactions/data/datasources/transactions_datasource_impl.dart';
+import 'features/transactions/data/repositories/transactions_repository_impl.dart';
+import 'features/transactions/domain/repositories/transactions_repository.dart';
+import 'features/transactions/domain/usecases/get_transactions_page.dart';
+import 'features/transactions/domain/usecases/delete_transaction.dart';
+import 'features/transactions/domain/usecases/calc_totals.dart';
+import 'features/transactions/data/models/transaction_model.dart';
+
+// Form usecases + provider
+import 'features/transactions/domain/usecases/create_transaction.dart';
+import 'features/transactions/domain/usecases/update_transaction.dart';
+import 'features/transactions/domain/usecases/create_transfer.dart';
+import 'features/transactions/domain/usecases/update_transfer_notes.dart';
+import 'features/transactions/presentation/providers/transaction_form_provider.dart';
+
+// Dashboard / Analytics
+import 'features/dashboard/domain/repositories/analytics_repository_impl.dart';
+import 'features/dashboard/domain/repositories/analytics_repository.dart';
+import 'features/dashboard/domain/usecases/get_dashboard_summary.dart';
+import 'features/dashboard/presentation/providers/dashboard_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +67,7 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await initFormatters(); // pt_BR para intl
+    await initFormatters();
   } catch (e) {
     runApp(BootErrorApp(error: e));
     return;
@@ -82,27 +106,26 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // -------------------------
-        // Auth (Clean Architecture)
+        // Core / Firebase singletons
         // -------------------------
-        Provider<FirebaseAuthDataSource>(
-          create: (_) => FirebaseAuthDataSource(),
-        ),
-        Provider<FirestoreUserDataSource>(
-          create: (_) => FirestoreUserDataSource(),
-        ),
+        Provider<FirebaseFirestore>(create: (_) => FirebaseFirestore.instance),
+
+        // -------------------------
+        // Auth (Clean)
+        // -------------------------
+        Provider(create: (_) => FirebaseAuthDataSource()),
+        Provider(create: (_) => FirestoreUserDataSource()),
         Provider<AuthRepository>(
           create: (ctx) => AuthRepositoryImpl(
             authDs: ctx.read<FirebaseAuthDataSource>(),
             userDs: ctx.read<FirestoreUserDataSource>(),
           ),
         ),
-        Provider<ObserveAuthState>(
-          create: (ctx) => ObserveAuthState(ctx.read<AuthRepository>()),
-        ),
-        Provider<SignIn>(create: (ctx) => SignIn(ctx.read<AuthRepository>())),
-        Provider<SignUp>(create: (ctx) => SignUp(ctx.read<AuthRepository>())),
-        Provider<SignOut>(create: (ctx) => SignOut(ctx.read<AuthRepository>())),
-        ChangeNotifierProvider<AuthProvider>(
+        Provider(create: (ctx) => ObserveAuthState(ctx.read<AuthRepository>())),
+        Provider(create: (ctx) => SignIn(ctx.read<AuthRepository>())),
+        Provider(create: (ctx) => SignUp(ctx.read<AuthRepository>())),
+        Provider(create: (ctx) => SignOut(ctx.read<AuthRepository>())),
+        ChangeNotifierProvider(
           create: (ctx) => AuthProvider(
             observeAuthState: ctx.read<ObserveAuthState>(),
             signInUseCase: ctx.read<SignIn>(),
@@ -112,55 +135,103 @@ class MyApp extends StatelessWidget {
         ),
 
         // -------------------------
-        // Filtros globais
+        // Filters (Transactions feature)
         // -------------------------
-        ChangeNotifierProvider<FiltersProvider>(
-          create: (_) => FiltersProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => TransactionsFiltersProvider()),
 
         // -------------------------
-        // Transactions (já funcionando)
+        // Transactions (Clean)
         // -------------------------
         Provider<TransactionsService>(create: (_) => TransactionsService()),
-        ChangeNotifierProxyProvider3<
+        Provider<TransferLocalService>(create: (_) => TransferLocalService()),
+
+        Provider<TransactionsDataSource>(
+          create: (ctx) => TransactionsDataSourceImpl(
+            ctx.read<TransactionsService>(),
+            transferService: ctx.read<TransferLocalService>(),
+            db: ctx.read<FirebaseFirestore>(),
+          ),
+        ),
+
+        Provider<TransactionsRepository>(
+          create: (ctx) => TransactionsRepositoryImpl(
+            ds: ctx.read<TransactionsDataSource>(),
+          ),
+        ),
+
+        Provider<GetTransactionsPage>(
+          create: (ctx) =>
+              GetTransactionsPage(ctx.read<TransactionsRepository>()),
+        ),
+        Provider<DeleteTransaction>(
+          create: (ctx) =>
+              DeleteTransaction(ctx.read<TransactionsRepository>()),
+        ),
+        Provider<CalcTotals>(create: (_) => CalcTotals()),
+
+        ChangeNotifierProxyProvider2<
           AuthProvider,
-          FiltersProvider,
-          TransactionsService,
+          TransactionsFiltersProvider,
           TransactionsProvider
         >(
-          create: (ctx) =>
-              TransactionsProvider(service: ctx.read<TransactionsService>()),
-          update: (_, auth, filters, service, tp) {
-            tp ??= TransactionsProvider(service: service);
+          create: (ctx) => TransactionsProvider(
+            getPage: ctx.read<GetTransactionsPage>(),
+            deleteTx: ctx.read<DeleteTransaction>(),
+            calcTotals: ctx.read<CalcTotals>(),
+          ),
+          update: (ctx, auth, filters, tp) {
+            tp ??= TransactionsProvider(
+              getPage: ctx.read<GetTransactionsPage>(),
+              deleteTx: ctx.read<DeleteTransaction>(),
+              calcTotals: ctx.read<CalcTotals>(),
+            );
             tp.apply(auth.user?.uid, filters);
             return tp;
           },
         ),
 
         // -------------------------
-        // User/Profile (Clean Architecture)
+        // Transactions Form (Clean)
         // -------------------------
-        Provider<FirebaseFirestore>(create: (_) => FirebaseFirestore.instance),
+        Provider<CreateTransaction>(
+          create: (ctx) =>
+              CreateTransaction(ctx.read<TransactionsRepository>()),
+        ),
+        Provider<UpdateTransaction>(
+          create: (ctx) =>
+              UpdateTransaction(ctx.read<TransactionsRepository>()),
+        ),
+        Provider<CreateTransfer>(
+          create: (ctx) => CreateTransfer(ctx.read<TransactionsRepository>()),
+        ),
+        Provider<UpdateTransferNotes>(
+          create: (ctx) =>
+              UpdateTransferNotes(ctx.read<TransactionsRepository>()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => TransactionFormProvider(
+            createTx: ctx.read<CreateTransaction>(),
+            updateTx: ctx.read<UpdateTransaction>(),
+            createTransfer: ctx.read<CreateTransfer>(),
+            updateTransferNotes: ctx.read<UpdateTransferNotes>(),
+          ),
+        ),
 
-        Provider<FirestoreUserProfileDataSource>(
+        // -------------------------
+        // User/Profile (Clean)
+        // -------------------------
+        Provider(
           create: (ctx) =>
               FirestoreUserProfileDataSourceImpl(ctx.read<FirebaseFirestore>()),
         ),
-
         Provider<UserRepository>(
           create: (ctx) => UserRepositoryImpl(
             ds: ctx.read<FirestoreUserProfileDataSource>(),
           ),
         ),
-
-        Provider<GetUser>(create: (ctx) => GetUser(ctx.read<UserRepository>())),
-        Provider<ObserveUser>(
-          create: (ctx) => ObserveUser(ctx.read<UserRepository>()),
-        ),
-        Provider<UpdateUserProfile>(
-          create: (ctx) => UpdateUserProfile(ctx.read<UserRepository>()),
-        ),
-
+        Provider(create: (ctx) => GetUser(ctx.read())),
+        Provider(create: (ctx) => ObserveUser(ctx.read())),
+        Provider(create: (ctx) => UpdateUserProfile(ctx.read())),
         ChangeNotifierProxyProvider<AuthProvider, UserProvider>(
           create: (ctx) => UserProvider(
             getUser: ctx.read<GetUser>(),
@@ -168,6 +239,39 @@ class MyApp extends StatelessWidget {
             updateUserProfile: ctx.read<UpdateUserProfile>(),
           ),
           update: (_, auth, up) => up!..apply(auth.user?.uid),
+        ),
+
+        // -------------------------
+        // Dashboard / Analytics (Clean)
+        // -------------------------
+        Provider<AnalyticsRepository>(create: (_) => AnalyticsRepositoryImpl()),
+        Provider(
+          create: (ctx) => GetDashboardSummary(ctx.read<AnalyticsRepository>()),
+        ),
+        ChangeNotifierProxyProvider3<
+          TransactionsProvider,
+          UserProvider,
+          GetDashboardSummary,
+          DashboardProvider
+        >(
+          create: (ctx) => DashboardProvider(getDashboardSummary: ctx.read()),
+          update: (_, tp, up, uc, dp) {
+            dp ??= DashboardProvider(getDashboardSummary: uc);
+
+            final items = tp.items.whereType<TransactionModel>().toList();
+            final balanceDb = (up.user?.balance ?? 0).toDouble();
+
+            dp.updateFrom(
+              loading: tp.loading,
+              items: items,
+              income: tp.sumIncome,
+              expense: tp.sumExpense,
+              transferNet: tp.sumTransferNet,
+              balanceDb: balanceDb,
+            );
+
+            return dp;
+          },
         ),
       ],
       child: MaterialApp(

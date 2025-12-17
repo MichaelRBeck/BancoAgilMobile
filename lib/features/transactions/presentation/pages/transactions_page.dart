@@ -1,20 +1,21 @@
 import 'dart:async';
 
-import 'package:bancoagil/utils/animated_routes.dart';
+import 'package:bancoagil/core/utils/animated_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../widgets/sign_out_action.dart';
-import '../widgets/common/totals_bar.dart';
-import '../features/user/presentation/providers/user_provider.dart';
-import '../utils/formatters.dart';
-import '../state/filters_provider.dart';
-import '../state/transactions_provider.dart';
-import 'transaction_form_page.dart';
-import '../utils/cpf_input_formatter.dart';
+import '../../../../widgets/sign_out_action.dart';
+import '../../../../widgets/common/totals_bar.dart';
 
-// ✅ Import correto do Model (UI continua usando Model por enquanto)
-import '../features/transactions/data/models/transaction_model.dart';
+import '../../../user/presentation/providers/user_provider.dart';
+import '../providers/filters_provider.dart';
+import '../providers/transactions_provider.dart';
+
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/cpf_input_formatter.dart';
+
+import 'transaction_form_page.dart';
+import '../../data/models/transaction_model.dart';
 
 class _Debouncer {
   final Duration delay;
@@ -29,7 +30,6 @@ class _Debouncer {
   void dispose() => _t?.cancel();
 }
 
-// Novas opções de ordenação
 enum _OrderMode { dataDesc, dataAsc, valorDesc, valorAsc }
 
 class TransactionsPage extends StatefulWidget {
@@ -44,7 +44,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
   final _cpfCtrl = TextEditingController();
   final _debounce = _Debouncer(const Duration(milliseconds: 400));
 
-  // Padrão: Data (mais recentes)
   _OrderMode _order = _OrderMode.dataDesc;
 
   String _displayType(String type) {
@@ -82,6 +81,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
   void _onScroll() {
     final tp = context.read<TransactionsProvider>();
     if (!_scroll.hasClients || tp.loading || tp.end) return;
+
     const threshold = 300;
     if (_scroll.position.pixels >=
         _scroll.position.maxScrollExtent - threshold) {
@@ -90,8 +90,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
   }
 
   Future<void> _pickRange() async {
-    final filters = context.read<FiltersProvider>();
+    final filters = context.read<TransactionsFiltersProvider>();
     final now = DateTime.now();
+
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(now.year - 5),
@@ -100,6 +101,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ? DateTimeRange(start: filters.start!, end: filters.end!)
           : null,
     );
+
     if (picked != null) {
       filters.setRange(
         DateTime(picked.start.year, picked.start.month, picked.start.day),
@@ -139,7 +141,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
   }
 
-  // Aplica ordenação local sobre a lista carregada do provider
   List<TransactionModel> _sortedItems(List<TransactionModel> items) {
     final list = [...items];
     switch (_order) {
@@ -160,16 +161,16 @@ class _TransactionsPageState extends State<TransactionsPage> {
   }
 
   Widget _buildFiltersBar(BuildContext context) {
-    final filters = context.watch<FiltersProvider>();
+    final filters = context.watch<TransactionsFiltersProvider>();
 
     final labelRange = (filters.start != null && filters.end != null)
         ? '${filters.start!.toLocal().toString().split(' ').first} → ${filters.end!.toLocal().toString().split(' ').first}'
         : 'Período';
 
-    // mantém o campo CPF sincronizado quando tipo = transfer
     if (filters.type != 'transfer' && _cpfCtrl.text.isNotEmpty) {
       _cpfCtrl.text = '';
     }
+
     if (filters.type == 'transfer') {
       final formatted = CpfInputFormatter.format(filters.counterpartyCpf);
       if (_cpfCtrl.text != formatted) {

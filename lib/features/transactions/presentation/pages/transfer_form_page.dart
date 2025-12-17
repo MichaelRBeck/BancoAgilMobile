@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/transfer_local_service.dart';
-import '../utils/cpf_validator.dart';
+import '../../../../services/transfer_local_service.dart';
+import '../../../../core/utils/cpf_validator.dart';
 
 class TransferFormPage extends StatefulWidget {
   const TransferFormPage({super.key});

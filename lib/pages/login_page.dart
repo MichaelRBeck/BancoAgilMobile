@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../utils/cpf_input_formatter.dart';
-import '../utils/cpf_validator.dart';
+import '../core/utils/cpf_input_formatter.dart';
+import '../core/utils/cpf_validator.dart';
 import '../state/auth_provider.dart';
 
 class LoginPage extends StatefulWidget {

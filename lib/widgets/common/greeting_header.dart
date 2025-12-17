@@ -74,9 +74,13 @@ class GreetingHeader extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         toBeginningOfSentenceCase(
-                          DateFormat('MMMM \'de\' y', 'pt_BR').format(DateTime.now()),
+                          DateFormat(
+                            'MMMM \'de\' y',
+                            'pt_BR',
+                          ).format(DateTime.now()),
                         )!,
                         style: TextStyle(
+                          // ignore: deprecated_member_use
                           color: onPrimary.withOpacity(.85),
                           fontSize: 13,
                         ),

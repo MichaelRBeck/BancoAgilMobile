@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../state/filters_provider.dart';
-import '../../../../utils/cpf_input_formatter.dart';
+import '../../../../core/utils/cpf_input_formatter.dart';
 
 class TransactionsFiltersBar extends StatefulWidget {
   final VoidCallback onPickRange;
@@ -22,7 +22,7 @@ class TransactionsFiltersBar extends StatefulWidget {
 class _TransactionsFiltersBarState extends State<TransactionsFiltersBar> {
   @override
   Widget build(BuildContext context) {
-    final filters = context.watch<FiltersProvider>();
+    final filters = context.watch<TransactionsFiltersProvider>();
 
     final labelRange = (filters.start != null && filters.end != null)
         ? '${filters.start!.toLocal().toString().split(' ').first} → ${filters.end!.toLocal().toString().split(' ').first}'
@@ -45,7 +45,7 @@ class _TransactionsFiltersBarState extends State<TransactionsFiltersBar> {
     final tipoField = SizedBox(
       width: 200,
       child: DropdownButtonFormField<String>(
-        value: filters.type.isEmpty ? null : filters.type,
+        initialValue: filters.type.isEmpty ? null : filters.type,
         decoration: const InputDecoration(
           labelText: 'Tipo',
           border: OutlineInputBorder(),

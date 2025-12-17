@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../utils/formatters.dart';
+import '../../core/utils/formatters.dart';
 
 class TotalsBar extends StatelessWidget {
   final bool loading;

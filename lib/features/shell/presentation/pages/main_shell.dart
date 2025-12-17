@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../features/dashboard/presentation/pages/dashboard_page.dart';
-import '../features/transactions/presentation/pages/transactions_page.dart';
-export '../features/shell/presentation/pages/main_shell.dart';
+
+import '../../../dashboard/presentation/pages/dashboard_page.dart';
+import '../../../transactions/presentation/pages/transactions_page.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -23,7 +23,6 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<bool> _onWillPop() async {
-    // se estiver na aba 1 (Transações), volta para 0 (Dashboard)
     if (_index != 0) {
       setState(() => _index = 0);
       _controller.animateToPage(
@@ -31,22 +30,19 @@ class _MainShellState extends State<MainShell> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
       );
-      return false; // cancela o pop (não sai do app)
+      return false;
     }
-    return true; // permite sair/minimizar
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        // PageView dá o slide horizontal entre as abas
         body: PageView(
           controller: _controller,
-          physics:
-              const NeverScrollableScrollPhysics(), // troca só via bottom bar
+          physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (i) => setState(() => _index = i),
           children: _pages,
         ),

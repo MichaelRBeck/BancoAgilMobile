@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../utils/cpf_validator.dart';
-import '../utils/cpf_input_formatter.dart'; // para formar máscara no fallback
+import '../core/utils/cpf_validator.dart';
+import '../core/utils/cpf_input_formatter.dart'; // para formar máscara no fallback
 
 class TransferLocalService {
   final _db = FirebaseFirestore.instance;
@@ -36,10 +36,10 @@ class TransferLocalService {
         );
       } else {
         // ignore: avoid_print
-        }
+      }
     } catch (e) {
       // ignore: avoid_print
-      }
+    }
 
     // 2) Fallback em /users por cpf (sem máscara)
     if (destUid == null || destUid.isEmpty) {
@@ -61,10 +61,10 @@ class TransferLocalService {
           );
         } else {
           // ignore: avoid_print
-          }
+        }
       } catch (e) {
         // ignore: avoid_print
-        }
+      }
     }
 
     // 3) Fallback adicional: /users por cpf **mascarado** (se alguém salvou mascarado)
@@ -90,10 +90,10 @@ class TransferLocalService {
           );
         } else {
           // ignore: avoid_print
-          }
+        }
       } catch (e) {
         // ignore: avoid_print
-        }
+      }
     }
 
     if (destUid == null || destUid.isEmpty) {

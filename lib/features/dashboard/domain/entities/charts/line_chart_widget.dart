@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 // ✅ use o Model (compatível com a UI atual)
-import '../../features/transactions/data/models/transaction_model.dart';
+import '../../../../transactions/data/models/transaction_model.dart';
 
 class _LegendItem extends StatelessWidget {
   final Color color;
@@ -123,7 +123,7 @@ class _LineChartViewState extends State<LineChartView> {
 
     final ordered = [...spots]..sort((a, b) => b.y.compareTo(a.y));
 
-    Widget _tooltipContent() {
+    Widget tooltipContent() {
       return Material(
         type: MaterialType.transparency,
         child: Container(
@@ -177,8 +177,7 @@ class _LineChartViewState extends State<LineChartView> {
     top = top.clamp(8.0, screenSize.height - 140.0);
 
     _tooltipEntry = OverlayEntry(
-      builder: (_) =>
-          Positioned(left: left, top: top, child: _tooltipContent()),
+      builder: (_) => Positioned(left: left, top: top, child: tooltipContent()),
     );
 
     overlay.insert(_tooltipEntry!);
@@ -245,7 +244,7 @@ class _LineChartViewState extends State<LineChartView> {
       spotsTransfer.add(FlSpot(i.toDouble(), _nz(transferByDay[d])));
     }
 
-    List<FlSpot> _ensureTwo(List<FlSpot> s) {
+    List<FlSpot> ensureTwo(List<FlSpot> s) {
       if (s.length == 1) {
         final p = s.first;
         return [p, FlSpot(p.x + 1, p.y)];
@@ -253,13 +252,13 @@ class _LineChartViewState extends State<LineChartView> {
       return s;
     }
 
-    final _income2 = _ensureTwo(spotsIncome);
-    final _expense2 = _ensureTwo(spotsExpense);
-    final _transfer2 = _ensureTwo(spotsTransfer);
+    final income2 = ensureTwo(spotsIncome);
+    final expense2 = ensureTwo(spotsExpense);
+    final transfer2 = ensureTwo(spotsTransfer);
 
     // Escala Y bonita
     double yMaxData = 0;
-    for (final s in [..._income2, ..._expense2, ..._transfer2]) {
+    for (final s in [...income2, ...expense2, ...transfer2]) {
       if (s.y > yMaxData) yMaxData = s.y;
     }
     if (yMaxData <= 0) yMaxData = 1;
@@ -307,6 +306,7 @@ class _LineChartViewState extends State<LineChartView> {
                 'Mostrando os últimos ${widget.maxDays} dias para melhor desempenho.',
                 style: TextStyle(
                   fontSize: 12,
+                  // ignore: deprecated_member_use
                   color: Colors.black.withOpacity(0.6),
                 ),
               ),
@@ -427,21 +427,21 @@ class _LineChartViewState extends State<LineChartView> {
                     ),
                     lineBarsData: [
                       LineChartBarData(
-                        spots: _income2,
+                        spots: income2,
                         isCurved: true,
                         barWidth: 3,
                         color: Colors.green,
                         dotData: const FlDotData(show: false),
                       ),
                       LineChartBarData(
-                        spots: _expense2,
+                        spots: expense2,
                         isCurved: true,
                         barWidth: 3,
                         color: Colors.red,
                         dotData: const FlDotData(show: false),
                       ),
                       LineChartBarData(
-                        spots: _transfer2,
+                        spots: transfer2,
                         isCurved: true,
                         barWidth: 3,
                         color: Colors.blue,

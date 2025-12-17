@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../utils/cpf_validator.dart';
+import '../../../../core/utils/cpf_validator.dart';
 
 abstract class UserProfileDataSource {
   Future<Map<String, dynamic>?> getProfileByUid(String uid);

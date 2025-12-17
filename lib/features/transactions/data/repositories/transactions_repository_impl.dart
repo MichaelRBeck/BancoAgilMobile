@@ -1,31 +1,33 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
-import '../../domain/entities/transaction.dart';
+
 import '../../domain/repositories/transactions_repository.dart';
-import '../datasources/transactions_firestore_datasource.dart';
+import '../datasources/transactions_datasource.dart';
+import '../models/transaction_model.dart';
 
 class TransactionsRepositoryImpl implements TransactionsRepository {
-  final TransactionsFirestoreDatasource ds;
-  TransactionsRepositoryImpl(this.ds);
+  final TransactionsDataSource ds;
+  TransactionsRepositoryImpl({required this.ds});
 
   @override
-  Future<(List<Transaction>, fs.DocumentSnapshot?)> fetchPage({
+  Future<TransactionsPageResult> fetchPage({
     required String uid,
     String? type,
     DateTime? start,
     DateTime? end,
-    int limit = 20,
+    required int limit,
     fs.DocumentSnapshot? startAfter,
-  }) => ds.fetchPage(
-    uid: uid,
-    type: type,
-    start: start,
-    end: end,
-    limit: limit,
-    startAfter: startAfter,
-  );
-
-  @override
-  Future<void> delete(String id) => ds.delete(id);
+    String? counterpartyCpf,
+  }) {
+    return ds.fetchPage(
+      uid: uid,
+      type: type,
+      start: start,
+      end: end,
+      limit: limit,
+      startAfter: startAfter,
+      counterpartyCpf: counterpartyCpf,
+    );
+  }
 
   @override
   Future<
@@ -44,6 +46,38 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
     String? type,
     String? counterpartyCpf,
   }) {
-    throw UnimplementedError(); // entra na Fase T2
+    return ds.totalsForPeriod(
+      uid: uid,
+      start: start,
+      end: end,
+      type: type,
+      counterpartyCpf: counterpartyCpf,
+    );
   }
+
+  @override
+  Future<void> create(TransactionModel model) => ds.create(model);
+
+  @override
+  Future<void> update(TransactionModel model) => ds.update(model);
+
+  @override
+  Future<void> updateTransferNotes({
+    required String id,
+    required String notes,
+  }) => ds.updateTransferNotes(id: id, notes: notes);
+
+  @override
+  Future<void> createTransfer({
+    required String destCpf,
+    required double amount,
+    String? description,
+  }) => ds.createTransfer(
+    destCpf: destCpf,
+    amount: amount,
+    description: description,
+  );
+
+  @override
+  Future<void> delete(String id) => ds.delete(id);
 }

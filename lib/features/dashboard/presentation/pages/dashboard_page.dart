@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../utils/formatters.dart';
-import '../state/transactions_provider.dart';
-import '../state/filters_provider.dart';
-import '../features/user/presentation/providers/user_provider.dart';
-import '../widgets/sign_out_action.dart';
-import '../services/analytics.dart';
-import '../widgets/charts/line_chart_widget.dart';
-import '../widgets/charts/pie_chart_widget.dart';
-import '../widgets/common/greeting_header.dart';
-import '../widgets/common/kpi_card.dart';
-import '../features/transactions/data/models/transaction_model.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../state/filters_provider.dart';
+import '../../../../widgets/sign_out_action.dart';
+import '../../domain/entities/charts/line_chart_widget.dart';
+import '../../domain/entities/charts/pie_chart_widget.dart';
+import '../../../../widgets/common/greeting_header.dart';
+import '../../domain/entities/kpi_card.dart';
+import '../../../transactions/data/models/transaction_model.dart';
+
+// ✅ Dashboard (Clean)
+import '../providers/dashboard_provider.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -80,27 +80,17 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tp = context.watch<TransactionsProvider>();
-    final filters = context.watch<FiltersProvider>();
-    final up = context.watch<UserProvider>(); // <- saldo do Firestore aqui
+    final dash = context.watch<DashboardProvider>();
+    final filters = context.watch<TransactionsFiltersProvider>();
 
-    final List<TransactionModel> items = tp.items
-        .whereType<TransactionModel>()
-        .toList();
+    final List<TransactionModel> items = dash.items;
 
-    // Agregações p/ gráficos
-    final incomeByMonth = AnalyticsService.sumByMonth(items, 'income');
-    final expenseByMonth = AnalyticsService.sumByMonth(items, 'expense');
-    final transferByMonth = AnalyticsService.sumByMonth(items, 'transfer');
-    final cats3 = AnalyticsService.buildCats3(items);
+    final income = dash.summary.income;
+    final expense = dash.summary.expense;
+    final transferNet = dash.summary.transferNet;
+    final double balanceDb = dash.summary.balanceDb;
 
-    // KPIs de período (analíticos)
-    final income = tp.sumIncome;
-    final expense = tp.sumExpense;
-    final transferNet = tp.sumTransferNet;
-
-    // Saldo real (do Firestore) via provider
-    final double balanceDb = (up.user?.balance ?? 0).toDouble();
+    final cats3 = dash.summary.cats3;
 
     return Scaffold(
       appBar: AppBar(
@@ -114,7 +104,7 @@ class _DashboardPageState extends State<DashboardPage> {
           const SignOutAction(),
         ],
       ),
-      body: tp.loading && items.isEmpty
+      body: dash.isLoading && items.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(12),
@@ -237,7 +227,6 @@ class _DashboardPageState extends State<DashboardPage> {
                             )
                           else
                             ...items.take(3).map((t) {
-                              // t pode ser Transaction/TransactionModel. O acesso é via campos existentes.
                               final isTransfer = (t.type == 'transfer');
 
                               final name = t.counterpartyName?.trim();

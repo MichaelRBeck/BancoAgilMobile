@@ -1,8 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
-import '../../data/datasources/transactions_datasource.dart';
 import '../../data/models/transaction_model.dart';
 
-abstract class TransactionsRepository {
+class TransactionsPageResult {
+  final List<TransactionModel> items;
+  final fs.DocumentSnapshot? nextCursor;
+  final bool hasMore;
+
+  const TransactionsPageResult({
+    required this.items,
+    required this.nextCursor,
+    required this.hasMore,
+  });
+}
+
+abstract class TransactionsDataSource {
   Future<TransactionsPageResult> fetchPage({
     required String uid,
     String? type,
@@ -32,8 +43,6 @@ abstract class TransactionsRepository {
 
   Future<void> create(TransactionModel model);
   Future<void> update(TransactionModel model);
-
-  /// Para seu caso: editar transferência só altera notes.
   Future<void> updateTransferNotes({required String id, required String notes});
 
   Future<void> createTransfer({

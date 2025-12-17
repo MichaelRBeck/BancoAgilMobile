@@ -23,6 +23,7 @@ class KpiCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 18,
+              // ignore: deprecated_member_use
               backgroundColor: color.withOpacity(0.15),
               child: Icon(icon, color: color),
             ),
