@@ -2,8 +2,7 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-// ✅ use o Model (compatível com a UI atual)
-import '../../../../transactions/data/models/transaction_model.dart';
+import '../../../transactions/domain/entities/transaction.dart';
 
 class _LegendItem extends StatelessWidget {
   final Color color;
@@ -25,7 +24,7 @@ class _LegendItem extends StatelessWidget {
 
 class LineChartView extends StatefulWidget {
   /// Transações já filtradas pelo período atual.
-  final List<TransactionModel> items;
+  final List<Transaction> items;
 
   /// Limite de dias para manter performance (default: 90).
   final int maxDays;
@@ -80,7 +79,6 @@ class _LineChartViewState extends State<LineChartView> {
     return '$dd/$mm/$yy';
   }
 
-  // “Nice numbers” para step agradável (1, 2, 2.5, 5 × 10^n)
   double _niceStep(double raw) {
     if (raw <= 0) return 1;
     final pow10 = math.pow(10, (math.log(raw) / math.ln10).floor());
@@ -162,7 +160,6 @@ class _LineChartViewState extends State<LineChartView> {
       );
     }
 
-    // Usa o OVERLAY RAIZ (sempre acima de tudo)
     final overlay = Overlay.of(context, rootOverlay: true);
 
     final screenSize = MediaQuery.of(context).size;
@@ -172,7 +169,6 @@ class _LineChartViewState extends State<LineChartView> {
     double left = globalPos.dx + dx;
     double top = globalPos.dy - dy;
 
-    // Mantém dentro da tela
     left = left.clamp(8.0, screenSize.width - 280.0);
     top = top.clamp(8.0, screenSize.height - 140.0);
 
@@ -203,13 +199,13 @@ class _LineChartViewState extends State<LineChartView> {
       final k = _dayKey(t.date);
       switch (t.type) {
         case 'income':
-          _add(incomeByDay, k, _nz(t.amount));
+          _add(incomeByDay, k, _nz(t.amount.abs()));
           break;
         case 'expense':
-          _add(expenseByDay, k, _nz(t.amount));
+          _add(expenseByDay, k, _nz(t.amount.abs()));
           break;
         case 'transfer':
-          _add(transferByDay, k, _nz(t.amount).abs());
+          _add(transferByDay, k, _nz(t.amount.abs()));
           break;
       }
     }
@@ -224,7 +220,6 @@ class _LineChartViewState extends State<LineChartView> {
       return const Center(child: Text('Sem dados no período.'));
     }
 
-    // Sequência diária contínua + limite performance
     var daySeq = _dayRange(allKeys.first, allKeys.last);
     bool truncated = false;
     if (daySeq.length > widget.maxDays) {
@@ -232,7 +227,6 @@ class _LineChartViewState extends State<LineChartView> {
       daySeq = daySeq.sublist(daySeq.length - widget.maxDays);
     }
 
-    // Spots
     final spotsIncome = <FlSpot>[];
     final spotsExpense = <FlSpot>[];
     final spotsTransfer = <FlSpot>[];
@@ -256,7 +250,6 @@ class _LineChartViewState extends State<LineChartView> {
     final expense2 = ensureTwo(spotsExpense);
     final transfer2 = ensureTwo(spotsTransfer);
 
-    // Escala Y bonita
     double yMaxData = 0;
     for (final s in [...income2, ...expense2, ...transfer2]) {
       if (s.y > yMaxData) yMaxData = s.y;
@@ -274,18 +267,15 @@ class _LineChartViewState extends State<LineChartView> {
     const minY = 0.0;
     final maxY = niceTop;
 
-    // Eixo X
     const minX = 0.0;
     final maxX = (daySeq.length > 1) ? (daySeq.length - 1).toDouble() : 1.0;
 
-    // Scroll horizontal
     const double minChartWidth = 600;
     final double chartWidth = math.max(
       minChartWidth,
       daySeq.length * widget.pxPerDay,
     );
 
-    // Intervalo de labels no X
     double tickIntervalX;
     if (daySeq.length <= 14) {
       tickIntervalX = 1;
@@ -326,14 +316,10 @@ class _LineChartViewState extends State<LineChartView> {
                     maxY: maxY,
                     gridData: FlGridData(show: true, horizontalInterval: step),
                     borderData: FlBorderData(show: true),
-
                     lineTouchData: LineTouchData(
                       enabled: true,
-                      handleBuiltInTouches:
-                          false, // desliga tooltip interno do fl_chart
+                      handleBuiltInTouches: false,
                       touchTooltipData: LineTouchTooltipData(
-                        // esses campos ficam sem efeito com handleBuiltInTouches=false,
-                        // mas mantemos para compatibilidade futura
                         tooltipPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 6,
@@ -348,7 +334,6 @@ class _LineChartViewState extends State<LineChartView> {
                           return;
                         }
 
-                        // Posição global do toque (a partir da posição local do chart)
                         final box =
                             _chartKey.currentContext?.findRenderObject()
                                 as RenderBox?;
@@ -358,10 +343,8 @@ class _LineChartViewState extends State<LineChartView> {
                         }
 
                         final local = event.localPosition;
-                        // Converte para coordenadas globais
                         final global = box.localToGlobal(local!);
 
-                        // Mostra overlay com os spots tocados
                         final spots = response.lineBarSpots!;
                         if (spots.isNotEmpty) {
                           _showTooltip(global, spots);
@@ -369,7 +352,6 @@ class _LineChartViewState extends State<LineChartView> {
                           _hideTooltip();
                         }
 
-                        // Esconde ao terminar o gesto
                         if (event is FlLongPressEnd ||
                             event is FlPanEndEvent ||
                             event is FlTapUpEvent) {
@@ -377,7 +359,6 @@ class _LineChartViewState extends State<LineChartView> {
                         }
                       },
                     ),
-
                     titlesData: FlTitlesData(
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
@@ -453,7 +434,6 @@ class _LineChartViewState extends State<LineChartView> {
               ),
             ),
           ),
-
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

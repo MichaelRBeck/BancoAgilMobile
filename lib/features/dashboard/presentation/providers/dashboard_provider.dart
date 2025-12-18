@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import '../../../transactions/data/models/transaction_model.dart';
+
+import '../../../transactions/domain/entities/transaction.dart';
 import '../../domain/usecases/get_dashboard_summary.dart';
 import '../../domain/entities/dashboard_summary.dart';
 
@@ -11,15 +12,15 @@ class DashboardProvider extends ChangeNotifier {
   DashboardSummary _summary = DashboardSummary.empty();
   DashboardSummary get summary => _summary;
 
-  List<TransactionModel> _items = const [];
-  List<TransactionModel> get items => _items;
+  List<Transaction> _items = const [];
+  List<Transaction> get items => _items;
 
   bool _loading = false;
   bool get isLoading => _loading;
 
   void updateFrom({
     required bool loading,
-    required List<TransactionModel> items,
+    required List<Transaction> items,
     required double income,
     required double expense,
     required double transferNet,

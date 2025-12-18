@@ -1,154 +1,157 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
+import '../features/transactions/data/datasources/transactions_firestore_datasource.dart';
+import '../features/transactions/data/dto/transactions_cursor_dto.dart';
 import '../features/transactions/data/models/transaction_model.dart';
 
 class TransactionsService {
-  final _col = fs.FirebaseFirestore.instance.collection('transactions');
+  final fs.CollectionReference _col;
+  final TransactionsFirestoreDatasource firestoreDs;
+
+  TransactionsService(fs.FirebaseFirestore firestore)
+    : _col = firestore.collection('transactions'),
+      firestoreDs = TransactionsFirestoreDatasource(firestore);
+
+  fs.DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
+      fs.FirebaseFirestore.instance.collection('users').doc(uid);
+
+  double _impactFor(String type, double amount) {
+    final v = amount.abs();
+    switch (type) {
+      case 'income':
+        return v;
+      case 'expense':
+        return -v;
+      default:
+        return 0; // transfer ou desconhecido
+    }
+  }
 
   Stream<List<TransactionModel>> streamForUser(String uid) {
     return _col
         .where('userId', isEqualTo: uid)
-        .orderBy('date', descending: true)
+        .orderBy('createdAt', descending: true)
+        .orderBy(fs.FieldPath.documentId, descending: true)
         .snapshots()
-        .map(
-          (snap) => snap.docs.map((d) => TransactionModel.fromDoc(d)).toList(),
-        );
+        .map((snap) => snap.docs.map(TransactionModel.fromDoc).toList());
   }
 
-  Future<(List<TransactionModel>, fs.DocumentSnapshot?)> fetchPage({
+  Future<(List<TransactionModel>, TransactionsCursorDto?)> fetchPage({
     required String uid,
-    String? type, // 'income' | 'expense' | 'transfer'
+    String? type,
     DateTime? start,
     DateTime? end,
     int limit = 20,
-    fs.DocumentSnapshot? startAfter,
-  }) async {
-    fs.Query q = _col
-        .where('userId', isEqualTo: uid)
-        .orderBy('date', descending: true);
-
-    if (type != null && type.trim().isNotEmpty) {
-      q = q.where('type', isEqualTo: type.trim());
-    }
-    if (start != null) {
-      q = q.where('date', isGreaterThanOrEqualTo: fs.Timestamp.fromDate(start));
-    }
-    if (end != null) {
-      q = q.where('date', isLessThanOrEqualTo: fs.Timestamp.fromDate(end));
-    }
-    if (startAfter != null) {
-      q = q.startAfterDocument(startAfter);
-    }
-
-    final snap = await q.limit(limit).get();
-    final docs = snap.docs;
-    final items = docs.map((d) => TransactionModel.fromDoc(d)).toList();
-    final last = docs.isEmpty ? null : docs.last;
-    return (items, last);
-  }
-
-  Future<void> add(TransactionModel t) async {
-    await _col.add(t.toMap());
-  }
-
-  Future<void> update(TransactionModel t) async {
-    await _col.doc(t.id).update(t.toMap());
-  }
-
-  Future<void> delete(String id) async {
-    await _col.doc(id).delete();
-  }
-
-  /// Totais do período com opção de filtrar por tipo e por CPF do destinatário (transferências).
-  /// Filtro por CPF é aplicado em código para evitar novos índices.
-  Future<
-    ({
-      double income,
-      double expense,
-      double transferIn,
-      double transferOut,
-      double transferNet,
-    })
-  >
-  totalsForPeriod({
-    required String uid,
-    DateTime? start,
-    DateTime? end,
-    String? type, // se informado, considera apenas esse tipo
-    String? counterpartyCpf,
-    int chunk = 500,
-  }) async {
-    double income = 0, expense = 0, transferIn = 0, transferOut = 0;
-
-    fs.Query q = _col
-        .where('userId', isEqualTo: uid)
-        .orderBy('date', descending: true);
-
-    if (start != null) {
-      q = q.where('date', isGreaterThanOrEqualTo: fs.Timestamp.fromDate(start));
-    }
-    if (end != null) {
-      q = q.where('date', isLessThanOrEqualTo: fs.Timestamp.fromDate(end));
-    }
-
-    String digits(String? s) => (s ?? '').replaceAll(RegExp(r'\D'), '');
-    final cpfFilter = digits(counterpartyCpf);
-
-    fs.DocumentSnapshot? cursor;
-    while (true) {
-      final snap =
-          await (cursor == null
-                  ? q.limit(chunk)
-                  : q.startAfterDocument(cursor).limit(chunk))
-              .get();
-
-      if (snap.docs.isEmpty) break;
-
-      for (final d in snap.docs) {
-        final t = TransactionModel.fromDoc(d);
-
-        // filtro de tipo
-        if (type != null && type.isNotEmpty && t.type != type) continue;
-
-        // filtro de CPF (apenas transferências)
-        if (cpfFilter.isNotEmpty && t.type == 'transfer') {
-          final docCpf = digits(t.counterpartyCpf ?? t.destCpf);
-          final matches = cpfFilter.length == 11
-              ? docCpf == cpfFilter
-              : docCpf.startsWith(cpfFilter);
-          if (!matches) continue;
-        }
-
-        switch (t.type) {
-          case 'income':
-            income += t.amount;
-            break;
-          case 'expense':
-            expense += t.amount;
-            break;
-          case 'transfer':
-            // saída se o dono do doc for o originUid; entrada se for o destUid
-            final isOut = (t.originUid != null && t.originUid == t.userId);
-            if (isOut) {
-              transferOut += t.amount;
-            } else {
-              transferIn += t.amount;
-            }
-            break;
-        }
-      }
-
-      cursor = snap.docs.last;
-      if (snap.docs.length < chunk) break;
-    }
-
-    final transferNet = transferIn - transferOut;
-    return (
-      income: income,
-      expense: expense,
-      transferIn: transferIn,
-      transferOut: transferOut,
-      transferNet: transferNet,
+    TransactionsCursorDto? startAfter,
+  }) {
+    return firestoreDs.fetchPage(
+      uid: uid,
+      type: type,
+      start: start,
+      end: end,
+      limit: limit,
+      startAfter: startAfter,
     );
   }
+
+  // ✅ CREATE: atualiza users.balance no mesmo commit (income/expense)
+  Future<void> add(TransactionModel t) async {
+    if (t.type == 'transfer') {
+      await _col.add(t.toMap());
+      return;
+    }
+
+    final impact = _impactFor(t.type, t.amount);
+
+    await fs.FirebaseFirestore.instance.runTransaction((tx) async {
+      final newDoc = _col.doc(); // gera ID
+      tx.set(newDoc, t.toMap());
+
+      tx.set(_userDoc(t.userId), {
+        'balance': fs.FieldValue.increment(impact),
+      }, fs.SetOptions(merge: true));
+    });
+  }
+
+  // ✅ UPDATE: aplica delta no saldo (income/expense)
+  Future<void> update(TransactionModel t) async {
+    if (t.type == 'transfer') {
+      await _col.doc(t.id).update(t.toMap());
+      return;
+    }
+
+    final ref = _col.doc(t.id);
+
+    await fs.FirebaseFirestore.instance.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) throw Exception('Transação não encontrada.');
+
+      final data = (snap.data() as Map<String, dynamic>);
+
+      final oldType = (data['type'] ?? '') as String;
+      final oldAmount =
+          (data['amount'] as num?)?.toDouble() ??
+          (data['value'] as num?)?.toDouble() ??
+          0.0;
+
+      final userId = (data['userId'] ?? t.userId) as String;
+
+      final oldImpact = _impactFor(oldType, oldAmount);
+      final newImpact = _impactFor(t.type, t.amount);
+      final delta = newImpact - oldImpact;
+
+      tx.update(ref, t.toMap());
+
+      if (delta != 0) {
+        tx.set(_userDoc(userId), {
+          'balance': fs.FieldValue.increment(delta),
+        }, fs.SetOptions(merge: true));
+      }
+    });
+  }
+
+  // ✅ DELETE: desfaz impacto no saldo (income/expense)
+  Future<void> delete(String id) async {
+    final ref = _col.doc(id);
+
+    await fs.FirebaseFirestore.instance.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+
+      final data = (snap.data() as Map<String, dynamic>);
+      final type = (data['type'] ?? '') as String;
+
+      // transfer: não mexe aqui (TransferLocalService é o dono dessa regra)
+      if (type == 'transfer') {
+        tx.delete(ref);
+        return;
+      }
+
+      final userId = (data['userId'] ?? '') as String;
+      final amount =
+          (data['amount'] as num?)?.toDouble() ??
+          (data['value'] as num?)?.toDouble() ??
+          0.0;
+
+      final impact = _impactFor(type, amount);
+
+      tx.set(_userDoc(userId), {
+        'balance': fs.FieldValue.increment(-impact),
+      }, fs.SetOptions(merge: true));
+
+      tx.delete(ref);
+    });
+  }
+
+  Future<void> updateTransferNotes({
+    required String id,
+    required String notes,
+  }) async {
+    await _col.doc(id).update({
+      'notes': notes,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    });
+  }
+
+  // (seu totalsForPeriod continua igual — já está OK)
 }

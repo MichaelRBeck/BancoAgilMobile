@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart' as fs;
-
-import '../../data/datasources/transactions_datasource.dart';
+import '../entities/transactions_cursor.dart';
+import '../entities/transactions_page_result.dart';
 import '../repositories/transactions_repository.dart';
 
 class GetTransactionsPage {
@@ -13,7 +12,7 @@ class GetTransactionsPage {
     DateTime? start,
     DateTime? end,
     required int limit,
-    fs.DocumentSnapshot? startAfter,
+    TransactionsCursor? startAfter,
     String? counterpartyCpf,
   }) {
     return repo.fetchPage(

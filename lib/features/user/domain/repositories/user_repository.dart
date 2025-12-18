@@ -1,7 +1,13 @@
-import '../entities/app_user.dart';
+import '../entities/user_profile.dart';
 
 abstract class UserRepository {
-  Future<AppUser?> getUserByUid(String uid);
-  Stream<AppUser?> observeUserByUid(String uid);
-  Future<void> updateUserProfile(String uid, {String? name, String? cpf});
+  Future<UserProfile> getProfile({required String uid});
+
+  Stream<UserProfile> observeProfile({required String uid});
+
+  Future<void> updateProfile({
+    required String uid,
+    required String fullName,
+    required String cpfDigits,
+  });
 }

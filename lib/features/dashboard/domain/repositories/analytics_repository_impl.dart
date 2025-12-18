@@ -1,12 +1,13 @@
 import 'package:intl/intl.dart';
-import '../../../transactions/data/models/transaction_model.dart';
-import '../../domain/repositories/analytics_repository.dart';
+
+import '../../../transactions/domain/entities/transaction.dart';
+import 'analytics_repository.dart';
 
 class AnalyticsRepositoryImpl implements AnalyticsRepository {
   static final DateFormat _ym = DateFormat('yyyy-MM');
 
   @override
-  Map<String, double> sumByMonth(List<TransactionModel> items, String type) {
+  Map<String, double> sumByMonth(List<Transaction> items, String type) {
     final map = <String, double>{};
 
     for (final t in items) {
@@ -20,7 +21,7 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
   }
 
   @override
-  Map<String, double> buildCats3(List<TransactionModel> txs) {
+  Map<String, double> buildCats3(List<Transaction> txs) {
     double receitas = 0, despesas = 0, transfer = 0;
 
     bool isIncome(String s) {

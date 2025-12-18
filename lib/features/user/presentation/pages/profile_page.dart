@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+
 import '../../../../core/utils/cpf_input_formatter.dart';
 import '../../../../core/utils/cpf_validator.dart';
+import '../../../../state/auth_provider.dart';
+import '../providers/profile_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,64 +17,67 @@ class _ProfilePageState extends State<ProfilePage> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _cpf = TextEditingController();
-  bool _loading = true;
-  bool _saving = false;
-  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final uid = context.read<AuthProvider>().user?.uid;
+      if (uid == null || uid.isEmpty) return;
+
+      final pp = context.read<ProfileProvider>();
+      await pp.load(uid);
+
+      final profile = pp.profile;
+      if (profile != null) {
+        _name.text = profile.fullName;
+        _cpf.text = CpfInputFormatter.format(profile.cpfDigits);
+      }
+    });
   }
 
-  Future<void> _load() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final data = snap.data() ?? {};
-      _name.text = (data['fullName'] ?? '').toString();
-      _cpf.text = CpfInputFormatter.format((data['cpf'] ?? '').toString());
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+  @override
+  void dispose() {
+    _name.dispose();
+    _cpf.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
+
+    final uid = context.read<AuthProvider>().user?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    final pp = context.read<ProfileProvider>();
+
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'fullName': _name.text.trim(),
-        'cpf': CpfValidator.onlyDigits(_cpf.text),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await pp.save(
+        uid: uid,
+        fullName: _name.text.trim(),
+        cpfDigits: CpfValidator.onlyDigits(_cpf.text),
+      );
+
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Perfil atualizado!')));
       Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    } catch (_) {
+      // erro já aparece em pp.error
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final pp = context.watch<ProfileProvider>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Meu perfil')),
-      body: _loading
+      body: pp.loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -81,8 +86,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (_error != null) ...[
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    if (pp.error != null) ...[
+                      Text(
+                        pp.error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                       const SizedBox(height: 8),
                     ],
                     TextFormField(
@@ -104,8 +112,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _saving ? null : _save,
-                      child: Text(_saving ? 'Salvando...' : 'Salvar'),
+                      onPressed: pp.saving ? null : _save,
+                      child: Text(pp.saving ? 'Salvando...' : 'Salvar'),
                     ),
                   ],
                 ),

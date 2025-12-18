@@ -1,10 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../core/utils/cpf_validator.dart';
-import '../core/utils/cpf_input_formatter.dart'; // para formar máscara no fallback
+import '../core/utils/cpf_input_formatter.dart';
 
 class TransferLocalService {
-  final _db = FirebaseFirestore.instance;
+  final FirebaseFirestore db;
+  final FirebaseAuth auth;
+
+  TransferLocalService({FirebaseFirestore? db, FirebaseAuth? auth})
+    : db = db ?? FirebaseFirestore.instance,
+      auth = auth ?? FirebaseAuth.instance;
 
   Future<void> createTransfer({
     required String destCpf,
@@ -17,96 +23,62 @@ class TransferLocalService {
     }
     if (amount <= 0) throw 'Informe um valor maior que zero.';
 
-    final originUser = FirebaseAuth.instance.currentUser;
+    final originUser = auth.currentUser;
     if (originUser == null) throw 'Não autenticado.';
 
     String? destUid;
     String? destName;
 
     // 1) Índice cpfIndex/{cpf}
-    try {
-      final idxSnap = await _db.collection('cpfIndex').doc(cpfDigits).get();
-      if (idxSnap.exists) {
-        final idx = idxSnap.data() as Map<String, dynamic>;
-        destUid = (idx['uid'] ?? '').toString();
-        destName = (idx['fullName'] ?? '').toString();
-        // ignore: avoid_print
-        print(
-          '[transfer] cpfIndex HIT: cpf=$cpfDigits uid=$destUid name=$destName',
-        );
-      } else {
-        // ignore: avoid_print
-      }
-    } catch (e) {
-      // ignore: avoid_print
+    final idxSnap = await db.collection('cpfIndex').doc(cpfDigits).get();
+    if (idxSnap.exists) {
+      final idx = idxSnap.data() as Map<String, dynamic>;
+      destUid = (idx['uid'] ?? '').toString();
+      destName = (idx['fullName'] ?? '').toString();
     }
 
-    // 2) Fallback em /users por cpf (sem máscara)
+    // 2) Fallback /users por cpf sem máscara
     if (destUid == null || destUid.isEmpty) {
-      try {
-        final q = await _db
-            .collection('users')
-            .where('cpf', isEqualTo: cpfDigits)
-            .limit(1)
-            .get();
+      final q = await db
+          .collection('users')
+          .where('cpf', isEqualTo: cpfDigits)
+          .limit(1)
+          .get();
 
-        if (q.docs.isNotEmpty) {
-          final u = q.docs.first;
-          destUid = u.id;
-          final data = u.data();
-          destName = (data['fullName'] ?? '').toString();
-          // ignore: avoid_print
-          print(
-            '[transfer] users FALLBACK DIGITS HIT: cpf=$cpfDigits uid=$destUid name=$destName',
-          );
-        } else {
-          // ignore: avoid_print
-        }
-      } catch (e) {
-        // ignore: avoid_print
+      if (q.docs.isNotEmpty) {
+        final u = q.docs.first;
+        destUid = u.id;
+        final data = u.data();
+        destName = (data['fullName'] ?? '').toString();
       }
     }
 
-    // 3) Fallback adicional: /users por cpf **mascarado** (se alguém salvou mascarado)
+    // 3) Fallback /users por cpf mascarado
     if (destUid == null || destUid.isEmpty) {
-      try {
-        final masked = CpfInputFormatter.format(
-          cpfDigits,
-        ); // ex: 506.704.538-82
-        final q = await _db
-            .collection('users')
-            .where('cpf', isEqualTo: masked)
-            .limit(1)
-            .get();
+      final masked = CpfInputFormatter.format(cpfDigits);
+      final q = await db
+          .collection('users')
+          .where('cpf', isEqualTo: masked)
+          .limit(1)
+          .get();
 
-        if (q.docs.isNotEmpty) {
-          final u = q.docs.first;
-          destUid = u.id;
-          final data = u.data();
-          destName = (data['fullName'] ?? '').toString();
-          // ignore: avoid_print
-          print(
-            '[transfer] users FALLBACK MASKED HIT: cpf=$masked uid=$destUid name=$destName',
-          );
-        } else {
-          // ignore: avoid_print
-        }
-      } catch (e) {
-        // ignore: avoid_print
+      if (q.docs.isNotEmpty) {
+        final u = q.docs.first;
+        destUid = u.id;
+        final data = u.data();
+        destName = (data['fullName'] ?? '').toString();
       }
     }
 
-    if (destUid == null || destUid.isEmpty) {
+    if (destUid == null || destUid.isEmpty)
       throw 'Destinatário não encontrado.';
-    }
-    if (originUser.uid == destUid) {
+    if (originUser.uid == destUid)
       throw 'Não é possível transferir para si mesmo.';
-    }
 
-    final originRef = _db.collection('users').doc(originUser.uid);
-    final destRef = _db.collection('users').doc(destUid);
+    final originRef = db.collection('users').doc(originUser.uid);
+    final destRef = db.collection('users').doc(destUid);
 
-    await _db.runTransaction((tx) async {
+    await db.runTransaction((tx) async {
       final originSnap = await tx.get(originRef);
       final destSnap = await tx.get(destRef);
 
@@ -127,15 +99,13 @@ class TransferLocalService {
 
       final now = FieldValue.serverTimestamp();
 
-      // Saldos
       tx.update(originRef, {
         'balance': originBalance - amount,
         'updatedAt': now,
       });
       tx.update(destRef, {'balance': destBalance + amount, 'updatedAt': now});
 
-      // Lançamento do REMETENTE (contra-parte = destinatário)
-      final tOriginRef = _db.collection('transactions').doc();
+      final tOriginRef = db.collection('transactions').doc();
       tx.set(tOriginRef, {
         'userId': originUser.uid,
         'type': 'transfer',
@@ -155,8 +125,7 @@ class TransferLocalService {
         'counterpartyName': destName ?? '',
       });
 
-      // Lançamento do DESTINATÁRIO (contra-parte = remetente)
-      final tDestRef = _db.collection('transactions').doc();
+      final tDestRef = db.collection('transactions').doc();
       tx.set(tDestRef, {
         'userId': destUid,
         'type': 'transfer',

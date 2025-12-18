@@ -1,6 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart' as fs;
-import '../../data/datasources/transactions_datasource.dart';
-import '../../data/models/transaction_model.dart';
+import '../entities/transaction.dart';
+import '../entities/transactions_cursor.dart';
+import '../entities/transactions_page_result.dart';
 
 abstract class TransactionsRepository {
   Future<TransactionsPageResult> fetchPage({
@@ -9,32 +9,13 @@ abstract class TransactionsRepository {
     DateTime? start,
     DateTime? end,
     required int limit,
-    fs.DocumentSnapshot? startAfter,
+    TransactionsCursor? startAfter,
     String? counterpartyCpf,
   });
 
-  Future<
-    ({
-      double income,
-      double expense,
-      double transferIn,
-      double transferOut,
-      double transferNet,
-    })
-  >
-  totalsForPeriod({
-    required String uid,
-    DateTime? start,
-    DateTime? end,
-    String? type,
-    String? counterpartyCpf,
-  });
-
-  Future<void> create(TransactionModel model);
-  Future<void> update(TransactionModel model);
-
-  /// Para seu caso: editar transferência só altera notes.
-  Future<void> updateTransferNotes({required String id, required String notes});
+  Future<void> create(Transaction entity);
+  Future<void> update(Transaction entity);
+  Future<void> delete(String id);
 
   Future<void> createTransfer({
     required String destCpf,
@@ -42,5 +23,5 @@ abstract class TransactionsRepository {
     String? description,
   });
 
-  Future<void> delete(String id);
+  Future<void> updateTransferNotes({required String id, required String notes});
 }

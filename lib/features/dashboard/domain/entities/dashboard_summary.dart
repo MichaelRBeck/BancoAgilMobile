@@ -11,8 +11,6 @@ class DashboardSummary {
   final Map<String, double> expenseByMonth;
   final Map<String, double> transferByMonth;
 
-  /// O PieChart3View espera exatamente:
-  /// { 'Receitas': x, 'Despesas': y, 'Transferências': z }
   final Map<String, double> cats3;
 
   const DashboardSummary({

@@ -8,14 +8,14 @@ import '../../../../widgets/sign_out_action.dart';
 import '../../../../widgets/common/totals_bar.dart';
 
 import '../../../user/presentation/providers/user_provider.dart';
-import '../providers/filters_provider.dart';
+import '../providers/transactions_filters_provider.dart';
 import '../providers/transactions_provider.dart';
 
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/cpf_input_formatter.dart';
 
 import 'transaction_form_page.dart';
-import '../../data/models/transaction_model.dart';
+import '../../domain/entities/transaction.dart';
 
 class _Debouncer {
   final Duration delay;
@@ -110,7 +110,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
   }
 
-  Future<void> _confirmDelete(TransactionModel t) async {
+  Future<void> _confirmDelete(Transaction t) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -141,7 +141,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
   }
 
-  List<TransactionModel> _sortedItems(List<TransactionModel> items) {
+  List<Transaction> _sortedItems(List<Transaction> items) {
     final list = [...items];
     switch (_order) {
       case _OrderMode.dataDesc:

@@ -1,12 +1,32 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
+import '../../../../services/transfer_local_service.dart';
+import '../../domain/entities/transaction.dart';
+import '../../domain/entities/transactions_cursor.dart';
+import '../../domain/entities/transactions_page_result.dart';
 import '../../domain/repositories/transactions_repository.dart';
 import '../datasources/transactions_datasource.dart';
+import '../dto/transactions_cursor_dto.dart';
 import '../models/transaction_model.dart';
 
 class TransactionsRepositoryImpl implements TransactionsRepository {
   final TransactionsDataSource ds;
-  TransactionsRepositoryImpl({required this.ds});
+  final TransferLocalService transferService;
+
+  TransactionsRepositoryImpl({required this.ds, required this.transferService});
+
+  TransactionsCursorDto? _toDto(TransactionsCursor? c) {
+    if (c == null) return null;
+    return TransactionsCursorDto(
+      date: fs.Timestamp.fromDate(c.date),
+      docId: c.docId,
+    );
+  }
+
+  TransactionsCursor? _toDomain(TransactionsCursorDto? c) {
+    if (c == null) return null;
+    return TransactionsCursor(date: c.date.toDate(), docId: c.docId);
+  }
 
   @override
   Future<TransactionsPageResult> fetchPage({
@@ -15,69 +35,57 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
     DateTime? start,
     DateTime? end,
     required int limit,
-    fs.DocumentSnapshot? startAfter,
+    TransactionsCursor? startAfter,
     String? counterpartyCpf,
-  }) {
-    return ds.fetchPage(
+  }) async {
+    final result = await ds.fetchPage(
       uid: uid,
       type: type,
       start: start,
       end: end,
       limit: limit,
-      startAfter: startAfter,
+      startAfter: _toDto(startAfter),
       counterpartyCpf: counterpartyCpf,
+    );
+
+    return TransactionsPageResult(
+      items: result.items.map((m) => m.toEntity()).toList(),
+      nextCursor: _toDomain(result.nextCursor),
+      hasMore: result.hasMore,
     );
   }
 
   @override
-  Future<
-    ({
-      double income,
-      double expense,
-      double transferIn,
-      double transferOut,
-      double transferNet,
-    })
-  >
-  totalsForPeriod({
-    required String uid,
-    DateTime? start,
-    DateTime? end,
-    String? type,
-    String? counterpartyCpf,
-  }) {
-    return ds.totalsForPeriod(
-      uid: uid,
-      start: start,
-      end: end,
-      type: type,
-      counterpartyCpf: counterpartyCpf,
-    );
+  Future<void> create(Transaction entity) {
+    return ds.create(TransactionModel.fromEntity(entity));
   }
 
   @override
-  Future<void> create(TransactionModel model) => ds.create(model);
+  Future<void> update(Transaction entity) {
+    return ds.update(TransactionModel.fromEntity(entity));
+  }
 
   @override
-  Future<void> update(TransactionModel model) => ds.update(model);
-
-  @override
-  Future<void> updateTransferNotes({
-    required String id,
-    required String notes,
-  }) => ds.updateTransferNotes(id: id, notes: notes);
+  Future<void> delete(String id) => ds.delete(id);
 
   @override
   Future<void> createTransfer({
     required String destCpf,
     required double amount,
     String? description,
-  }) => ds.createTransfer(
-    destCpf: destCpf,
-    amount: amount,
-    description: description,
-  );
+  }) {
+    return transferService.createTransfer(
+      destCpf: destCpf,
+      amount: amount,
+      description: description,
+    );
+  }
 
   @override
-  Future<void> delete(String id) => ds.delete(id);
+  Future<void> updateTransferNotes({
+    required String id,
+    required String notes,
+  }) {
+    return ds.updateTransferNotes(id: id, notes: notes);
+  }
 }

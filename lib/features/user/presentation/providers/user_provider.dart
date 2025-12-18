@@ -1,23 +1,23 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../../domain/entities/app_user.dart';
-import '../../domain/usecases/get_user.dart';
-import '../../domain/usecases/observe_user.dart';
+import '../../domain/entities/user_profile.dart';
+import '../../domain/usecases/get_profile.dart';
+import '../../domain/usecases/observe_profile.dart';
 import '../../domain/usecases/update_user_profile.dart';
 
 class UserProvider extends ChangeNotifier {
-  final GetUser getUser;
-  final ObserveUser observeUser;
+  final GetProfile getProfile;
+  final ObserveProfile observeProfile;
   final UpdateUserProfile updateUserProfile;
 
   UserProvider({
-    required this.getUser,
-    required this.observeUser,
+    required this.getProfile,
+    required this.observeProfile,
     required this.updateUserProfile,
   });
 
-  AppUser? _user;
-  AppUser? get user => _user;
+  UserProfile? _user;
+  UserProfile? get user => _user;
 
   bool _loading = false;
   bool get isLoading => _loading;
@@ -25,7 +25,7 @@ class UserProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  StreamSubscription? _sub;
+  StreamSubscription<UserProfile>? _sub;
   String? _uid;
 
   Future<void> apply(String? uid) async {
@@ -47,11 +47,9 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1) carga inicial (rápida)
-      _user = await getUser(uid);
+      _user = await getProfile(uid: uid);
 
-      // 2) stream para manter atualizado
-      _sub = observeUser(uid).listen((u) {
+      _sub = observeProfile(uid: uid).listen((u) {
         _user = u;
         notifyListeners();
       });
@@ -63,7 +61,10 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateProfile({String? name, String? cpf}) async {
+  Future<void> updateProfile({
+    required String fullName,
+    required String cpfDigits,
+  }) async {
     final uid = _uid;
     if (uid == null) return;
 
@@ -72,8 +73,12 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await updateUserProfile(uid, name: name, cpf: cpf);
-      // stream atualiza sozinho; opcional: otimista
+      await updateUserProfile(
+        uid: uid,
+        fullName: fullName,
+        cpfDigits: cpfDigits,
+      );
+      // stream atualiza sozinho
     } catch (e) {
       _error = e.toString();
     } finally {

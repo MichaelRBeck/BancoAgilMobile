@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../services/transfer_local_service.dart';
+import 'package:provider/provider.dart';
+
 import '../../../../core/utils/cpf_validator.dart';
+import '../providers/transfer_form_provider.dart';
 
 class TransferFormPage extends StatefulWidget {
   const TransferFormPage({super.key});
@@ -14,8 +16,6 @@ class _TransferFormPageState extends State<TransferFormPage> {
   final _cpf = TextEditingController();
   final _amount = TextEditingController();
   final _desc = TextEditingController();
-  bool _loading = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -26,38 +26,31 @@ class _TransferFormPageState extends State<TransferFormPage> {
   }
 
   Future<void> _submit() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!_form.currentState!.validate()) return;
+
+    final destCpf = _cpf.text.trim();
+    final amount = double.tryParse(_amount.text.replaceAll(',', '.')) ?? 0;
+    final desc = _desc.text.trim();
+
+    final fp = context.read<TransferFormProvider>();
+
     try {
-      if (!_form.currentState!.validate()) return;
-
-      final destCpf = _cpf.text.trim();
-      final amount = double.tryParse(_amount.text.replaceAll(',', '.')) ?? 0;
-      final desc = _desc.text.trim();
-
-      final service = TransferLocalService();
-      await service.createTransfer(
-        destCpf: destCpf,
-        amount: amount,
-        description: desc,
-      );
+      await fp.submit(destCpf: destCpf, amount: amount, description: desc);
 
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Transferência realizada!')));
       Navigator.pop(context, true);
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    } catch (_) {
+      // erro já fica em fp.error (mostramos na tela)
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final fp = context.watch<TransferFormProvider>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Nova transferência')),
       body: Center(
@@ -72,8 +65,11 @@ class _TransferFormPageState extends State<TransferFormPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_error != null) ...[
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    if (fp.error != null) ...[
+                      Text(
+                        fp.error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                       const SizedBox(height: 8),
                     ],
                     TextFormField(
@@ -114,9 +110,9 @@ class _TransferFormPageState extends State<TransferFormPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _loading ? null : _submit,
+                        onPressed: fp.loading ? null : _submit,
                         icon: const Icon(Icons.send),
-                        label: Text(_loading ? 'Enviando...' : 'Transferir'),
+                        label: Text(fp.loading ? 'Enviando...' : 'Transferir'),
                       ),
                     ),
                   ],

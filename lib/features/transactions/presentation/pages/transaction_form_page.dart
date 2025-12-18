@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../state/auth_provider.dart';
-import '../../../../state/transactions_provider.dart';
 import '../../../../core/utils/cpf_input_formatter.dart';
 import '../../../../widgets/common/receipt_attachment.dart';
-import '../../data/models/transaction_model.dart';
+import '../../../../state/auth_provider.dart';
+import '../../domain/entities/transaction.dart';
 import '../providers/transaction_form_provider.dart';
+import '../providers/transactions_provider.dart';
 
 class TransactionFormPage extends StatefulWidget {
-  final TransactionModel? editing;
+  final Transaction? editing;
   const TransactionFormPage({super.key, this.editing});
 
   @override
@@ -41,16 +41,20 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       _category = t.category;
       _amount = t.amount;
       _date = t.date;
-      _notes = t.notes ?? '';
-
-      final fp = context.read<TransactionFormProvider>();
-      fp.receiptBase64 = t.receiptBase64;
-      fp.contentType = t.contentType;
+      _notes = (t.notes ?? '').trim();
 
       if (t.type == 'transfer') {
         final cpf = (t.counterpartyCpf ?? t.destCpf ?? '');
         _destCpfCtrl.text = CpfInputFormatter.format(cpf);
       }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TransactionFormProvider>().setInitialReceipt(
+          receiptBase64: t.receiptBase64,
+          contentType: t.contentType,
+        );
+      });
     }
   }
 
@@ -81,12 +85,12 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       return;
     }
 
-    final auth = context.read<AuthProvider>();
-    final uid = auth.user?.uid;
+    final uid = context.read<AuthProvider>().user?.uid;
     if (uid == null || uid.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Não autenticado.')));
+      ).showSnackBar(const SnackBar(content: Text('Usuário não autenticado.')));
       return;
     }
 
@@ -98,7 +102,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
         isEditing: _isEditing,
         editing: widget.editing,
         type: _type,
-        category: _category,
+        category: _category.trim(),
         amount: _amount!,
         date: _date,
         notes: _notes.trim(),
@@ -106,9 +110,11 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       );
 
       if (!mounted) return;
-      await context.read<TransactionsProvider>().refresh();
-      if (!mounted) return;
 
+      await context.read<TransactionsProvider>().refresh();
+      await context.read<TransactionsProvider>();
+
+      if (!mounted) return;
       Navigator.pop(context);
 
       if (!mounted) return;
@@ -181,7 +187,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                 TextFormField(
                   initialValue: _category,
                   decoration: const InputDecoration(labelText: 'Categoria'),
-                  onChanged: (v) => _category = v.trim(),
+                  onChanged: (v) => _category = v,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -203,7 +209,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                 decoration: const InputDecoration(
                   labelText: 'Notas (opcional)',
                 ),
-                onChanged: (v) => _notes = v.trim(),
+                onChanged: (v) => _notes = v,
               ),
               const SizedBox(height: 12),
 
@@ -215,6 +221,11 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                   onRemove: fp.removeReceipt,
                 ),
                 const SizedBox(height: 12),
+              ],
+
+              if (fp.error != null) ...[
+                const SizedBox(height: 8),
+                Text(fp.error!, style: const TextStyle(color: Colors.red)),
               ],
 
               const SizedBox(height: 24),

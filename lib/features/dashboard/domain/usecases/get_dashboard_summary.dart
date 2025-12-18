@@ -1,4 +1,4 @@
-import '../../../transactions/data/models/transaction_model.dart';
+import '../../../transactions/domain/entities/transaction.dart';
 import '../entities/dashboard_summary.dart';
 import '../repositories/analytics_repository.dart';
 
@@ -7,7 +7,7 @@ class GetDashboardSummary {
   GetDashboardSummary(this.analyticsRepo);
 
   DashboardSummary call({
-    required List<TransactionModel> items,
+    required List<Transaction> items,
     required double balanceDb,
     required double income,
     required double expense,

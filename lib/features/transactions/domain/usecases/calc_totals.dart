@@ -1,4 +1,4 @@
-import '../../data/models/transaction_model.dart';
+import '../entities/transaction.dart';
 
 class TotalsResult {
   final double income;
@@ -13,20 +13,25 @@ class TotalsResult {
 }
 
 class CalcTotals {
-  TotalsResult call(List<TransactionModel> items) {
-    double income = 0, expense = 0, transferNet = 0;
+  TotalsResult call(List<Transaction> items) {
+    double income = 0;
+    double expense = 0;
+    double transferNet = 0;
 
     for (final t in items) {
-      final v = t.amount.toDouble();
+      switch (t.type) {
+        case 'income':
+          income += t.amount;
+          break;
 
-      if (t.type == 'income') income += v.abs();
-      if (t.type == 'expense') expense += v.abs();
+        case 'expense':
+          expense += t.amount;
+          break;
 
-      // Mantém compatível com o que você já fazia (ajuste se sua regra for outra)
-      if (t.type == 'transfer') {
-        // normalmente transferNet é líquido (depende do sentido); aqui mantemos "0" por padrão
-        // se você já calcula isso no provider atual, depois eu replico exatamente.
-        transferNet += 0;
+        case 'transfer':
+          // net = entrada - saída já vem refletido no entity
+          transferNet += t.amount;
+          break;
       }
     }
 

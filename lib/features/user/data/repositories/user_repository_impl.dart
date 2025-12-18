@@ -1,32 +1,28 @@
-import '../../domain/entities/app_user.dart';
+import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/user_repository.dart';
-import '../datasources/firestore_user_profile_datasource.dart';
-import '../models/app_user_model.dart';
+import '../datasources/user_datasource.dart';
 
 class UserRepositoryImpl implements UserRepository {
-  final FirestoreUserProfileDataSource ds;
-  UserRepositoryImpl({required this.ds});
+  final UserDataSource ds;
+  UserRepositoryImpl(this.ds);
 
   @override
-  Future<AppUser?> getUserByUid(String uid) async {
-    final data = await ds.getUserDoc(uid);
-    if (data == null) return null;
-    return AppUserModel.fromMap(uid, data);
+  Future<UserProfile> getProfile({required String uid}) async {
+    final m = await ds.getProfile(uid: uid);
+    return m.toEntity();
   }
 
   @override
-  Stream<AppUser?> observeUserByUid(String uid) {
-    return ds.observeUserDoc(uid).map((data) {
-      if (data == null) return null;
-      return AppUserModel.fromMap(uid, data);
-    });
+  Stream<UserProfile> observeProfile({required String uid}) {
+    return ds.observeProfile(uid: uid).map((m) => m.toEntity());
   }
 
   @override
-  Future<void> updateUserProfile(String uid, {String? name, String? cpf}) {
-    final payload = <String, dynamic>{};
-    if (name != null) payload['name'] = name;
-    if (cpf != null) payload['cpf'] = cpf;
-    return ds.updateUserDoc(uid, payload);
+  Future<void> updateProfile({
+    required String uid,
+    required String fullName,
+    required String cpfDigits,
+  }) {
+    return ds.updateProfile(uid: uid, fullName: fullName, cpfDigits: cpfDigits);
   }
 }

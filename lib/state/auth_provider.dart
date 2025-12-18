@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
+import '../features/auth/domain/entities/auth_user.dart';
 import '../features/auth/domain/usecases/observe_auth_state.dart';
 import '../features/auth/domain/usecases/sign_in.dart';
 import '../features/auth/domain/usecases/sign_out.dart';
@@ -14,9 +14,9 @@ class AuthProvider extends ChangeNotifier {
   final SignUp signUpUseCase;
   final SignOut signOutUseCase;
 
-  User? _user;
+  AuthUser? _user;
   bool _loading = true;
-  StreamSubscription<User?>? _sub;
+  StreamSubscription<AuthUser?>? _sub;
 
   AuthProvider({
     required this.observeAuthState,
@@ -31,7 +31,7 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  User? get user => _user;
+  AuthUser? get user => _user;
   bool get isLoading => _loading;
   bool get isLoggedIn => _user != null;
 

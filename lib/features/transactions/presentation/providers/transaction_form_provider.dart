@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../data/models/transaction_model.dart';
+import '../../domain/entities/transaction.dart';
 import '../../domain/usecases/create_transaction.dart';
 import '../../domain/usecases/update_transaction.dart';
 import '../../domain/usecases/create_transfer.dart';
@@ -29,6 +29,13 @@ class TransactionFormProvider extends ChangeNotifier {
 
   String? receiptBase64;
   String? contentType;
+
+  /// ✅ usado quando abre a tela em modo edição, para hidratar o ReceiptAttachment
+  void setInitialReceipt({String? receiptBase64, String? contentType}) {
+    this.receiptBase64 = receiptBase64;
+    this.contentType = contentType;
+    notifyListeners();
+  }
 
   Future<void> pickReceipt() async {
     error = null;
@@ -77,7 +84,7 @@ class TransactionFormProvider extends ChangeNotifier {
   Future<void> save({
     required String uid,
     required bool isEditing,
-    required TransactionModel? editing,
+    required Transaction? editing,
     required String type,
     required String category,
     required double amount,
@@ -93,7 +100,6 @@ class TransactionFormProvider extends ChangeNotifier {
       // TRANSFER
       if (type == 'transfer') {
         if (isEditing && editing != null) {
-          // regra: só notes
           await updateTransferNotes(id: editing.id, notes: notes);
           return;
         }
@@ -110,7 +116,7 @@ class TransactionFormProvider extends ChangeNotifier {
       final now = DateTime.now();
 
       if (!isEditing) {
-        final model = TransactionModel(
+        final entity = Transaction(
           id: 'new',
           userId: uid,
           type: type,
@@ -123,10 +129,10 @@ class TransactionFormProvider extends ChangeNotifier {
           createdAt: now,
           updatedAt: now,
         );
-        await createTx(model);
+        await createTx(entity);
       } else {
         final old = editing!;
-        final edited = TransactionModel(
+        final edited = Transaction(
           id: old.id,
           userId: old.userId,
           type: type,
@@ -138,6 +144,15 @@ class TransactionFormProvider extends ChangeNotifier {
           contentType: receiptBase64 != null ? contentType : null,
           createdAt: old.createdAt,
           updatedAt: now,
+          // mantém os campos de transferência caso existam
+          originUid: old.originUid,
+          destUid: old.destUid,
+          originCpf: old.originCpf,
+          destCpf: old.destCpf,
+          status: old.status,
+          counterpartyUid: old.counterpartyUid,
+          counterpartyCpf: old.counterpartyCpf,
+          counterpartyName: old.counterpartyName,
         );
         await updateTx(edited);
       }

@@ -4,57 +4,21 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../state/filters_provider.dart';
 import '../../../../widgets/sign_out_action.dart';
-import '../../domain/entities/charts/line_chart_widget.dart';
-import '../../domain/entities/charts/pie_chart_widget.dart';
 import '../../../../widgets/common/greeting_header.dart';
-import '../../domain/entities/kpi_card.dart';
-import '../../../transactions/data/models/transaction_model.dart';
 
-// ✅ Dashboard (Clean)
+import '../widgets/line_chart_widget.dart';
+import '../widgets/pie_chart_widget.dart';
+import '../widgets/kpi_card.dart';
+
+import '../../../transactions/domain/entities/transaction.dart';
 import '../providers/dashboard_provider.dart';
+import '../../../../features/user/presentation/providers/user_provider.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
-}
-
-class _LegendEntry {
-  final String label;
-  final Color color;
-  const _LegendEntry(this.label, this.color);
-}
-
-// ignore: unused_element
-class _LegendRow extends StatelessWidget {
-  final List<_LegendEntry> entries;
-  const _LegendRow({required this.entries});
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      children: [
-        for (final e in entries)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: e.color,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(e.label, style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-      ],
-    );
-  }
 }
 
 class _DashboardPageState extends State<DashboardPage> {
@@ -82,8 +46,12 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final dash = context.watch<DashboardProvider>();
     final filters = context.watch<TransactionsFiltersProvider>();
+    final fullName = context.watch<UserProvider>().user?.fullName ?? '';
+    final firstName = fullName.trim().isEmpty
+        ? null
+        : fullName.trim().split(' ').first;
 
-    final List<TransactionModel> items = dash.items;
+    final List<Transaction> items = dash.items;
 
     final income = dash.summary.income;
     final expense = dash.summary.expense;
@@ -111,10 +79,9 @@ class _DashboardPageState extends State<DashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const GreetingHeader(),
+                  GreetingHeader(firstName: firstName),
                   const SizedBox(height: 12),
 
-                  // KPIs
                   KpiCard(
                     title: 'Saldo em conta',
                     value: balanceDb,
@@ -142,7 +109,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
                   const SizedBox(height: 12),
 
-                  // Gráficos
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(12),
@@ -176,7 +142,6 @@ class _DashboardPageState extends State<DashboardPage> {
                             ],
                           ),
                           const SizedBox(height: 8),
-
                           SizedBox(
                             height: 350,
                             child: AnimatedSwitcher(
@@ -199,8 +164,6 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                             ),
                           ),
-
-                          const SizedBox(height: 8),
                         ],
                       ),
                     ),
@@ -208,7 +171,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
                   const SizedBox(height: 12),
 
-                  // Transações recentes
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),

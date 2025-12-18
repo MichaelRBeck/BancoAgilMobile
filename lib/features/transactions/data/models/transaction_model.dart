@@ -24,6 +24,54 @@ class TransactionModel extends Transaction {
     required super.updatedAt,
   });
 
+  Transaction toEntity() {
+    return Transaction(
+      id: id,
+      userId: userId,
+      type: type,
+      category: category,
+      amount: amount,
+      date: date,
+      notes: notes,
+      receiptBase64: receiptBase64,
+      contentType: contentType,
+      originUid: originUid,
+      destUid: destUid,
+      originCpf: originCpf,
+      destCpf: destCpf,
+      status: status,
+      counterpartyUid: counterpartyUid,
+      counterpartyCpf: counterpartyCpf,
+      counterpartyName: counterpartyName,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
+  factory TransactionModel.fromEntity(Transaction t) {
+    return TransactionModel(
+      id: t.id,
+      userId: t.userId,
+      type: t.type,
+      category: t.category,
+      amount: t.amount,
+      date: t.date,
+      notes: t.notes,
+      receiptBase64: t.receiptBase64,
+      contentType: t.contentType,
+      originUid: t.originUid,
+      destUid: t.destUid,
+      originCpf: t.originCpf,
+      destCpf: t.destCpf,
+      status: t.status,
+      counterpartyUid: t.counterpartyUid,
+      counterpartyCpf: t.counterpartyCpf,
+      counterpartyName: t.counterpartyName,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    );
+  }
+
   Map<String, dynamic> toMap() => {
     'userId': userId,
     'type': type,

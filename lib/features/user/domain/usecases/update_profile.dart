@@ -1,8 +1,8 @@
 import '../repositories/user_repository.dart';
 
-class UpdateUserProfile {
+class UpdateProfile {
   final UserRepository repo;
-  UpdateUserProfile(this.repo);
+  UpdateProfile(this.repo);
 
   Future<void> call({
     required String uid,
