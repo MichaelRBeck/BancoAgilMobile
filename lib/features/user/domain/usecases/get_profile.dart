@@ -5,5 +5,7 @@ class GetProfile {
   final UserRepository repo;
   GetProfile(this.repo);
 
-  Future<UserProfile> call({required String uid}) => repo.getProfile(uid: uid);
+  Future<UserProfile> call({required String uid}) {
+    return repo.getProfile(uid: uid);
+  }
 }

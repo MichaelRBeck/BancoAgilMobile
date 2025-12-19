@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
-import '../../domain/usecases/create_transfer.dart';
+
+import '../../domain/usecases/execute_transfer.dart';
 
 class TransferFormProvider extends ChangeNotifier {
-  final CreateTransfer createTransfer;
-  TransferFormProvider({required this.createTransfer});
+  final ExecuteTransfer executeTransfer;
+
+  TransferFormProvider({required this.executeTransfer});
 
   bool _loading = false;
   String? _error;
@@ -12,16 +14,22 @@ class TransferFormProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> submit({
+    required String originUid,
+    required String originCpf,
     required String destCpf,
     required double amount,
     String? description,
   }) async {
+    if (_loading) return; // evita double submit
+
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await createTransfer(
+      await executeTransfer(
+        originUid: originUid,
+        originCpf: originCpf,
         destCpf: destCpf,
         amount: amount,
         description: description,

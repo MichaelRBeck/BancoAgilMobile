@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/cpf_validator.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../user/presentation/providers/user_provider.dart';
 import '../providers/transfer_form_provider.dart';
 
 class TransferFormPage extends StatefulWidget {
@@ -33,17 +35,36 @@ class _TransferFormPageState extends State<TransferFormPage> {
     final desc = _desc.text.trim();
 
     final fp = context.read<TransferFormProvider>();
+    final auth = context.read<AuthProvider>();
+    final userProfile = context.read<UserProvider>().user;
+
+    final uid = auth.uid;
+
+    if (uid == null || userProfile == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Usuário não autenticado')));
+      return;
+    }
 
     try {
-      await fp.submit(destCpf: destCpf, amount: amount, description: desc);
+      await fp.submit(
+        originUid: uid,
+        originCpf: userProfile.cpfDigits,
+        destCpf: destCpf,
+        amount: amount,
+        description: desc,
+      );
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Transferência realizada!')));
+
       Navigator.pop(context, true);
     } catch (_) {
-      // erro já fica em fp.error (mostramos na tela)
+      // erro já tratado no provider
     }
   }
 

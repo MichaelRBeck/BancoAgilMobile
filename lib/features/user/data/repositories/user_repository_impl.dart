@@ -18,7 +18,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateProfile({
+  Future<void> updateUserProfile({
     required String uid,
     required String fullName,
     required String cpfDigits,

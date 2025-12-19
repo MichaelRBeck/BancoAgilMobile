@@ -15,13 +15,12 @@ abstract class TransactionsRepository {
 
   Future<void> create(Transaction entity);
   Future<void> update(Transaction entity);
-  Future<void> delete(String id);
 
-  Future<void> createTransfer({
-    required String destCpf,
-    required double amount,
-    String? description,
+  Future<void> delete(String id, {required String uid});
+
+  Future<void> updateTransferNotes({
+    required String id,
+    required String notes,
+    required String uid,
   });
-
-  Future<void> updateTransferNotes({required String id, required String notes});
 }

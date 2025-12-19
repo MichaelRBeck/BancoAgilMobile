@@ -2,13 +2,13 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/user_profile.dart';
 import '../../domain/usecases/get_profile.dart';
-import '../../domain/usecases/update_profile.dart';
+import '../../domain/usecases/update_user_profile.dart';
 
 class ProfileProvider extends ChangeNotifier {
   final GetProfile getProfile;
-  final UpdateProfile updateProfile;
+  final UpdateUserProfile updateUserProfile;
 
-  ProfileProvider({required this.getProfile, required this.updateProfile});
+  ProfileProvider({required this.getProfile, required this.updateUserProfile});
 
   bool loading = false;
   bool saving = false;
@@ -41,7 +41,12 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await updateProfile(uid: uid, fullName: fullName, cpfDigits: cpfDigits);
+      await updateUserProfile(
+        uid: uid,
+        fullName: fullName,
+        cpfDigits: cpfDigits,
+      );
+
       profile = profile?.copyWith(fullName: fullName, cpfDigits: cpfDigits);
     } catch (e) {
       error = e.toString();

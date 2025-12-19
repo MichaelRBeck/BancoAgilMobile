@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+
 import '../../domain/entities/user_profile.dart';
 import '../../domain/usecases/get_profile.dart';
 import '../../domain/usecases/observe_profile.dart';
@@ -78,7 +79,6 @@ class UserProvider extends ChangeNotifier {
         fullName: fullName,
         cpfDigits: cpfDigits,
       );
-      // stream atualiza sozinho
     } catch (e) {
       _error = e.toString();
     } finally {

@@ -9,7 +9,7 @@ class UpdateUserProfile {
     required String fullName,
     required String cpfDigits,
   }) {
-    return repo.updateProfile(
+    return repo.updateUserProfile(
       uid: uid,
       fullName: fullName,
       cpfDigits: cpfDigits,

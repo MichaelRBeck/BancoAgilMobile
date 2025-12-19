@@ -30,7 +30,6 @@ class TransactionFormProvider extends ChangeNotifier {
   String? receiptBase64;
   String? contentType;
 
-  /// ✅ usado quando abre a tela em modo edição, para hidratar o ReceiptAttachment
   void setInitialReceipt({String? receiptBase64, String? contentType}) {
     this.receiptBase64 = receiptBase64;
     this.contentType = contentType;
@@ -83,6 +82,7 @@ class TransactionFormProvider extends ChangeNotifier {
 
   Future<void> save({
     required String uid,
+    required String originCpf, // necessário para transfer
     required bool isEditing,
     required Transaction? editing,
     required String type,
@@ -90,7 +90,7 @@ class TransactionFormProvider extends ChangeNotifier {
     required double amount,
     required DateTime date,
     required String notes,
-    required String destCpf, // só transfer
+    required String destCpf,
   }) async {
     error = null;
     saving = true;
@@ -100,11 +100,13 @@ class TransactionFormProvider extends ChangeNotifier {
       // TRANSFER
       if (type == 'transfer') {
         if (isEditing && editing != null) {
-          await updateTransferNotes(id: editing.id, notes: notes);
+          await updateTransferNotes(uid: uid, id: editing.id, notes: notes);
           return;
         }
 
         await createTransfer(
+          originUid: uid,
+          originCpf: originCpf,
           destCpf: destCpf,
           amount: amount,
           description: notes,
@@ -117,7 +119,7 @@ class TransactionFormProvider extends ChangeNotifier {
 
       if (!isEditing) {
         final entity = Transaction(
-          id: 'new',
+          id: '', // ✅ AQUI: vazio para criar novo doc
           userId: uid,
           type: type,
           category: category,
@@ -144,7 +146,6 @@ class TransactionFormProvider extends ChangeNotifier {
           contentType: receiptBase64 != null ? contentType : null,
           createdAt: old.createdAt,
           updatedAt: now,
-          // mantém os campos de transferência caso existam
           originUid: old.originUid,
           destUid: old.destUid,
           originCpf: old.originCpf,

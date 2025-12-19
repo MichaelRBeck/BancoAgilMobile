@@ -4,5 +4,7 @@ class DeleteTransaction {
   final TransactionsRepository repo;
   DeleteTransaction(this.repo);
 
-  Future<void> call(String id) => repo.delete(id);
+  Future<void> call({required String uid, required String id}) {
+    return repo.delete(id, uid: uid);
+  }
 }

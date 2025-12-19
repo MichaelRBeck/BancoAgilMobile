@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+// ignore: depend_on_referenced_packages
+import 'package:meta/meta.dart';
 
 @immutable
 class DashboardSummary {

@@ -1,32 +1,35 @@
-import 'package:bancoagil/theme/app_theme.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
 import 'firebase_options.dart';
-import 'pages/login_page.dart';
 import 'core/utils/formatters.dart';
+import 'theme/app_theme.dart';
+
+import 'pages/login_page.dart';
 import 'pages/main_shell.dart';
 
-import 'state/auth_provider.dart';
-import 'state/filters_provider.dart';
-import 'services/transactions_service.dart';
-import 'services/transfer_local_service.dart';
-
-// Auth
-import 'features/auth/data/datasources/firestore_user_datasource.dart';
+// -------------------------
+// AUTH (Clean)
+// -------------------------
+import 'features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
-import 'features/auth/domain/usecases/observe_auth_state.dart';
+import 'features/auth/domain/usecases/observe_auth_uid.dart';
+import 'features/auth/domain/usecases/get_current_uid.dart';
 import 'features/auth/domain/usecases/sign_in.dart';
-import 'features/auth/domain/usecases/sign_out.dart';
 import 'features/auth/domain/usecases/sign_up.dart';
+import 'features/auth/domain/usecases/sign_out.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
 
-// User/Profile (CORRIGIDO)
+// -------------------------
+// USER / PROFILE
+// -------------------------
 import 'features/user/data/datasources/user_datasource.dart';
 import 'features/user/data/datasources/user_firestore_datasource.dart';
 import 'features/user/data/repositories/user_repository_impl.dart';
@@ -36,27 +39,35 @@ import 'features/user/domain/usecases/observe_profile.dart';
 import 'features/user/domain/usecases/update_user_profile.dart';
 import 'features/user/presentation/providers/user_provider.dart';
 
-// Transactions
+// -------------------------
+// TRANSACTIONS
+// -------------------------
 import 'features/transactions/data/datasources/transactions_datasource.dart';
-import 'features/transactions/data/datasources/transactions_datasource_impl.dart';
+import 'features/transactions/data/datasources/transactions_firestore_datasource.dart';
 import 'features/transactions/data/repositories/transactions_repository_impl.dart';
 import 'features/transactions/domain/repositories/transactions_repository.dart';
 import 'features/transactions/domain/usecases/get_transactions_page.dart';
 import 'features/transactions/domain/usecases/delete_transaction.dart';
 import 'features/transactions/domain/usecases/calc_totals.dart';
+import 'features/transactions/presentation/providers/transactions_filters_provider.dart';
 import 'features/transactions/presentation/providers/transactions_provider.dart';
 
-// Form usecases + providers
+// -------------------------
+// FORMS
+// -------------------------
 import 'features/transactions/domain/usecases/create_transaction.dart';
 import 'features/transactions/domain/usecases/update_transaction.dart';
 import 'features/transactions/domain/usecases/create_transfer.dart';
 import 'features/transactions/domain/usecases/update_transfer_notes.dart';
+import 'features/transactions/domain/usecases/execute_transfer.dart';
 import 'features/transactions/presentation/providers/transaction_form_provider.dart';
 import 'features/transactions/presentation/providers/transfer_form_provider.dart';
 
-// Dashboard / Analytics
-import 'features/dashboard/domain/repositories/analytics_repository_impl.dart';
+// -------------------------
+// DASHBOARD / ANALYTICS
+// -------------------------
 import 'features/dashboard/domain/repositories/analytics_repository.dart';
+import 'features/dashboard/data/repositories/analytics_repository_impl.dart';
 import 'features/dashboard/domain/usecases/get_dashboard_summary.dart';
 import 'features/dashboard/presentation/providers/dashboard_provider.dart';
 
@@ -107,34 +118,72 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // -------------------------
-        // Core / Firebase singleton
+        // Core singletons
         // -------------------------
         Provider<fs.FirebaseFirestore>(
           create: (_) => fs.FirebaseFirestore.instance,
         ),
+        Provider<fb.FirebaseAuth>(create: (_) => fb.FirebaseAuth.instance),
 
         // -------------------------
-        // Auth
+        // Auth (Clean)
         // -------------------------
-        Provider(create: (_) => FirestoreUserDataSource()),
-        Provider<AuthRepository>(
-          create: (ctx) => AuthRepositoryImpl(
-            auth: fb.FirebaseAuth.instance,
-            userDs: ctx.read<FirestoreUserDataSource>(),
-          ),
+        Provider<FirebaseAuthDataSource>(
+          create: (ctx) => FirebaseAuthDataSource(ctx.read<fb.FirebaseAuth>()),
         ),
-        Provider(create: (ctx) => ObserveAuthState(ctx.read<AuthRepository>())),
-        Provider(create: (ctx) => SignIn(ctx.read<AuthRepository>())),
-        Provider(create: (ctx) => SignUp(ctx.read<AuthRepository>())),
-        Provider(create: (ctx) => SignOut(ctx.read<AuthRepository>())),
+        Provider<AuthRepository>(
+          create: (ctx) =>
+              AuthRepositoryImpl(ctx.read<FirebaseAuthDataSource>()),
+        ),
+        Provider<ObserveAuthUid>(
+          create: (ctx) => ObserveAuthUid(ctx.read<AuthRepository>()),
+        ),
+        Provider<GetCurrentUid>(
+          create: (ctx) => GetCurrentUid(ctx.read<AuthRepository>()),
+        ),
+        Provider<SignIn>(create: (ctx) => SignIn(ctx.read<AuthRepository>())),
+        Provider<SignUp>(create: (ctx) => SignUp(ctx.read<AuthRepository>())),
+        Provider<SignOut>(create: (ctx) => SignOut(ctx.read<AuthRepository>())),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (ctx) {
+            final p = AuthProvider(
+              observeAuthUid: ctx.read<ObserveAuthUid>(),
+              getCurrentUid: ctx.read<GetCurrentUid>(),
+              signInUc: ctx.read<SignIn>(),
+              signUpUc: ctx.read<SignUp>(),
+              signOutUc: ctx.read<SignOut>(),
+            );
+            p.init(); // ✅ importante
+            return p;
+          },
+        ),
 
-        ChangeNotifierProvider(
-          create: (ctx) => AuthProvider(
-            observeAuthState: ctx.read<ObserveAuthState>(),
-            signInUseCase: ctx.read<SignIn>(),
-            signUpUseCase: ctx.read<SignUp>(),
-            signOutUseCase: ctx.read<SignOut>(),
+        // -------------------------
+        // User/Profile
+        // -------------------------
+        Provider<UserDataSource>(
+          create: (ctx) =>
+              UserFirestoreDataSource(ctx.read<fs.FirebaseFirestore>()),
+        ),
+        Provider<UserRepository>(
+          create: (ctx) => UserRepositoryImpl(ctx.read<UserDataSource>()),
+        ),
+        Provider<GetProfile>(
+          create: (ctx) => GetProfile(ctx.read<UserRepository>()),
+        ),
+        Provider<ObserveProfile>(
+          create: (ctx) => ObserveProfile(ctx.read<UserRepository>()),
+        ),
+        Provider<UpdateUserProfile>(
+          create: (ctx) => UpdateUserProfile(ctx.read<UserRepository>()),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, UserProvider>(
+          create: (ctx) => UserProvider(
+            getProfile: ctx.read<GetProfile>(),
+            observeProfile: ctx.read<ObserveProfile>(),
+            updateUserProfile: ctx.read<UpdateUserProfile>(),
           ),
+          update: (_, auth, up) => up!..apply(auth.uid),
         ),
 
         // -------------------------
@@ -143,26 +192,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionsFiltersProvider()),
 
         // -------------------------
-        // Transactions
+        // Transactions (Data/Repo/Usecases)
         // -------------------------
-        Provider<TransactionsService>(
-          create: (ctx) =>
-              TransactionsService(ctx.read<fs.FirebaseFirestore>()),
-        ),
-        Provider<TransferLocalService>(create: (_) => TransferLocalService()),
-
         Provider<TransactionsDataSource>(
           create: (ctx) =>
-              TransactionsDataSourceImpl(ctx.read<TransactionsService>()),
+              TransactionsFirestoreDataSource(ctx.read<fs.FirebaseFirestore>()),
         ),
-
         Provider<TransactionsRepository>(
-          create: (ctx) => TransactionsRepositoryImpl(
-            ds: ctx.read<TransactionsDataSource>(),
-            transferService: ctx.read<TransferLocalService>(),
-          ),
+          create: (ctx) =>
+              TransactionsRepositoryImpl(ctx.read<TransactionsDataSource>()),
         ),
-
         Provider<GetTransactionsPage>(
           create: (ctx) =>
               GetTransactionsPage(ctx.read<TransactionsRepository>()),
@@ -189,13 +228,24 @@ class MyApp extends StatelessWidget {
               deleteTx: ctx.read<DeleteTransaction>(),
               calcTotals: ctx.read<CalcTotals>(),
             );
-            tp.apply(auth.user?.uid, filters);
+            tp.apply(auth.uid, filters);
             return tp;
           },
         ),
 
         // -------------------------
-        // Transactions Form
+        // Transfer orchestration (usecase)
+        // -------------------------
+        Provider<ExecuteTransfer>(
+          create: (ctx) => ExecuteTransfer(
+            firestore: ctx.read<fs.FirebaseFirestore>(),
+            userRepo: ctx.read<UserRepository>(),
+            txRepo: ctx.read<TransactionsRepository>(),
+          ),
+        ),
+
+        // -------------------------
+        // Transactions Form usecases + providers
         // -------------------------
         Provider<CreateTransaction>(
           create: (ctx) =>
@@ -208,6 +258,7 @@ class MyApp extends StatelessWidget {
         Provider<CreateTransfer>(
           create: (ctx) => CreateTransfer(ctx.read<TransactionsRepository>()),
         ),
+
         Provider<UpdateTransferNotes>(
           create: (ctx) =>
               UpdateTransferNotes(ctx.read<TransactionsRepository>()),
@@ -223,42 +274,16 @@ class MyApp extends StatelessWidget {
         ),
 
         ChangeNotifierProvider(
-          create: (ctx) =>
-              TransferFormProvider(createTransfer: ctx.read<CreateTransfer>()),
-        ),
-
-        // -------------------------
-        // User/Profile (✅ CORRIGIDO: UserDataSource -> Repo -> UseCases -> Provider)
-        // -------------------------
-        Provider<UserDataSource>(
-          create: (ctx) =>
-              UserFirestoreDataSource(ctx.read<fs.FirebaseFirestore>()),
-        ),
-        Provider<UserRepository>(
-          create: (ctx) => UserRepositoryImpl(ctx.read<UserDataSource>()),
-        ),
-
-        Provider(create: (ctx) => GetProfile(ctx.read<UserRepository>())),
-        Provider(create: (ctx) => ObserveProfile(ctx.read<UserRepository>())),
-        Provider(
-          create: (ctx) => UpdateUserProfile(ctx.read<UserRepository>()),
-        ),
-
-        ChangeNotifierProxyProvider<AuthProvider, UserProvider>(
-          create: (ctx) => UserProvider(
-            getProfile: ctx.read<GetProfile>(),
-            observeProfile: ctx.read<ObserveProfile>(),
-            updateUserProfile: ctx.read<UpdateUserProfile>(),
+          create: (ctx) => TransferFormProvider(
+            executeTransfer: ctx.read<ExecuteTransfer>(),
           ),
-
-          update: (_, auth, up) => up!..apply(auth.user?.uid),
         ),
 
         // -------------------------
         // Dashboard / Analytics
         // -------------------------
         Provider<AnalyticsRepository>(create: (_) => AnalyticsRepositoryImpl()),
-        Provider(
+        Provider<GetDashboardSummary>(
           create: (ctx) => GetDashboardSummary(ctx.read<AnalyticsRepository>()),
         ),
 
@@ -268,7 +293,9 @@ class MyApp extends StatelessWidget {
           GetDashboardSummary,
           DashboardProvider
         >(
-          create: (ctx) => DashboardProvider(getDashboardSummary: ctx.read()),
+          create: (ctx) => DashboardProvider(
+            getDashboardSummary: ctx.read<GetDashboardSummary>(),
+          ),
           update: (_, tp, up, uc, dp) {
             dp ??= DashboardProvider(getDashboardSummary: uc);
 
@@ -311,10 +338,10 @@ class _AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    if (auth.isLoading) {
+    if (auth.loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (!auth.isLoggedIn) {
+    if (auth.uid == null) {
       return const LoginPage();
     }
     return const MainShell();

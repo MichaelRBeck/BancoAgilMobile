@@ -3,8 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/utils/cpf_input_formatter.dart';
 import '../../../../core/utils/cpf_validator.dart';
-import '../../../../state/auth_provider.dart';
-import '../providers/profile_provider.dart';
+import '../providers/user_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -22,19 +21,12 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-
-      final uid = context.read<AuthProvider>().user?.uid;
-      if (uid == null || uid.isEmpty) return;
-
-      final pp = context.read<ProfileProvider>();
-      await pp.load(uid);
-
-      final profile = pp.profile;
-      if (profile != null) {
-        _name.text = profile.fullName;
-        _cpf.text = CpfInputFormatter.format(profile.cpfDigits);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final up = context.read<UserProvider>();
+      final u = up.user;
+      if (u != null) {
+        _name.text = u.fullName;
+        _cpf.text = CpfInputFormatter.format(u.cpfDigits);
       }
     });
   }
@@ -49,35 +41,35 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
 
-    final uid = context.read<AuthProvider>().user?.uid;
-    if (uid == null || uid.isEmpty) return;
+    final up = context.read<UserProvider>();
 
-    final pp = context.read<ProfileProvider>();
+    await up.updateProfile(
+      fullName: _name.text.trim(),
+      cpfDigits: CpfValidator.onlyDigits(_cpf.text),
+    );
 
-    try {
-      await pp.save(
-        uid: uid,
-        fullName: _name.text.trim(),
-        cpfDigits: CpfValidator.onlyDigits(_cpf.text),
-      );
+    if (!mounted) return;
 
-      if (!mounted) return;
+    if (up.error != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Perfil atualizado!')));
-      Navigator.pop(context, true);
-    } catch (_) {
-      // erro já aparece em pp.error
+      ).showSnackBar(SnackBar(content: Text(up.error!)));
+      return;
     }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Perfil atualizado!')));
+    Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final pp = context.watch<ProfileProvider>();
+    final up = context.watch<UserProvider>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meu perfil')),
-      body: pp.loading
+      body: up.isLoading && up.user == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -86,9 +78,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (pp.error != null) ...[
+                    if (up.error != null) ...[
                       Text(
-                        pp.error!,
+                        up.error!,
                         style: const TextStyle(color: Colors.red),
                       ),
                       const SizedBox(height: 8),
@@ -112,8 +104,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: pp.saving ? null : _save,
-                      child: Text(pp.saving ? 'Salvando...' : 'Salvar'),
+                      onPressed: up.isLoading ? null : _save,
+                      child: Text(up.isLoading ? 'Salvando...' : 'Salvar'),
                     ),
                   ],
                 ),

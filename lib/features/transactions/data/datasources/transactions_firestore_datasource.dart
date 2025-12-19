@@ -1,22 +1,44 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../dto/transactions_cursor_dto.dart';
 import '../models/transaction_model.dart';
+import 'transactions_datasource.dart';
 
-class TransactionsFirestoreDatasource {
-  final CollectionReference _col;
+class TransactionsFirestoreDataSource implements TransactionsDataSource {
+  final FirebaseFirestore firestore;
+  final CollectionReference<Map<String, dynamic>> _col;
 
-  TransactionsFirestoreDatasource(FirebaseFirestore firestore)
+  TransactionsFirestoreDataSource(this.firestore)
     : _col = firestore.collection('transactions');
 
-  Future<(List<TransactionModel>, TransactionsCursorDto?)> fetchPage({
+  DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
+      firestore.collection('users').doc(uid);
+
+  bool _isNewId(String id) => id.isEmpty || id == 'new';
+
+  double _impactFor(String type, double amount) {
+    final v = amount.abs();
+    switch (type) {
+      case 'income':
+        return v;
+      case 'expense':
+        return -v;
+      default:
+        return 0; // transfer (saldo é tratado no ExecuteTransfer)
+    }
+  }
+
+  @override
+  Future<TransactionsPageDto> fetchPage({
     required String uid,
     String? type,
     DateTime? start,
     DateTime? end,
-    int limit = 20,
+    required int limit,
     TransactionsCursorDto? startAfter,
+    String? counterpartyCpf,
   }) async {
-    Query q = _col
+    Query<Map<String, dynamic>> q = _col
         .where('userId', isEqualTo: uid)
         .orderBy('date', descending: true)
         .orderBy(FieldPath.documentId, descending: true);
@@ -30,12 +52,15 @@ class TransactionsFirestoreDatasource {
     if (end != null) {
       q = q.where('date', isLessThanOrEqualTo: Timestamp.fromDate(end));
     }
-
+    if (counterpartyCpf != null && counterpartyCpf.isNotEmpty) {
+      q = q.where('counterpartyCpf', isEqualTo: counterpartyCpf);
+    }
     if (startAfter != null) {
       q = q.startAfter([startAfter.date, startAfter.docId]);
     }
 
     final snap = await q.limit(limit).get();
+
     final items = snap.docs.map(TransactionModel.fromDoc).toList();
 
     final lastDoc = snap.docs.isEmpty ? null : snap.docs.last;
@@ -46,8 +71,126 @@ class TransactionsFirestoreDatasource {
             docId: lastDoc.id,
           );
 
-    return (items, nextCursor);
+    final hasMore = snap.docs.length == limit;
+
+    return TransactionsPageDto(
+      items: items,
+      nextCursor: nextCursor,
+      hasMore: hasMore,
+    );
   }
 
-  Future<void> delete(String id) => _col.doc(id).delete();
+  @override
+  Future<void> create({
+    required String uid,
+    required TransactionModel model,
+  }) async {
+    final isNew = _isNewId(model.id);
+
+    // Transfer não mexe no balance aqui
+    if (model.type == 'transfer') {
+      if (isNew) {
+        await _col.add(model.toMap());
+      } else {
+        await _col.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+      }
+      return;
+    }
+
+    final impact = _impactFor(model.type, model.amount);
+
+    await firestore.runTransaction((tx) async {
+      final docRef = isNew ? _col.doc() : _col.doc(model.id);
+
+      tx.set(docRef, model.toMap(), SetOptions(merge: true));
+
+      tx.set(_userDoc(uid), {
+        'balance': FieldValue.increment(impact),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  @override
+  Future<void> update({
+    required String uid,
+    required TransactionModel model,
+  }) async {
+    if (model.type == 'transfer') {
+      await _col.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+      return;
+    }
+
+    final ref = _col.doc(model.id);
+
+    await firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) throw Exception('Transação não encontrada.');
+
+      final data = snap.data() as Map<String, dynamic>;
+      final oldType = (data['type'] ?? '') as String;
+      final oldAmount =
+          (data['amount'] as num?)?.toDouble() ??
+          (data['value'] as num?)?.toDouble() ??
+          0.0;
+
+      final oldImpact = _impactFor(oldType, oldAmount);
+      final newImpact = _impactFor(model.type, model.amount);
+      final delta = newImpact - oldImpact;
+
+      tx.set(ref, model.toMap(), SetOptions(merge: true));
+
+      if (delta != 0) {
+        tx.set(_userDoc(uid), {
+          'balance': FieldValue.increment(delta),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    });
+  }
+
+  @override
+  Future<void> delete({required String uid, required String id}) async {
+    final ref = _col.doc(id);
+
+    await firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+
+      final data = snap.data() as Map<String, dynamic>;
+      final type = (data['type'] ?? '') as String;
+
+      // Transfer não mexe no balance aqui
+      if (type == 'transfer') {
+        tx.delete(ref);
+        return;
+      }
+
+      final amount =
+          (data['amount'] as num?)?.toDouble() ??
+          (data['value'] as num?)?.toDouble() ??
+          0.0;
+
+      final impact = _impactFor(type, amount);
+
+      tx.set(_userDoc(uid), {
+        'balance': FieldValue.increment(-impact),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      tx.delete(ref);
+    });
+  }
+
+  @override
+  Future<void> updateTransferNotes({
+    required String uid,
+    required String id,
+    required String notes,
+  }) {
+    return _col.doc(id).set({
+      'notes': notes,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 }

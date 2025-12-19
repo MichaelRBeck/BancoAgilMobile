@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/utils/cpf_input_formatter.dart';
 import '../core/utils/cpf_validator.dart';
-import '../state/auth_provider.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,6 +29,7 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       precacheImage(const AssetImage('assets/finance.jpg'), context);
     });
   }

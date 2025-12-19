@@ -1,17 +1,15 @@
-import '../entities/auth_user.dart';
+import 'dart:async';
 
 abstract class AuthRepository {
-  Stream<AuthUser?> authStateChanges();
-  AuthUser? currentUser();
+  Stream<String?> observeUid(); // uid ou null
+  Future<String?> currentUid();
 
   Future<void> signIn({required String email, required String password});
-
   Future<void> signUp({
     required String email,
     required String password,
     required String fullName,
     required String cpfDigitsOnly,
   });
-
   Future<void> signOut();
 }

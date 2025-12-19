@@ -1,26 +1,25 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FirebaseAuthDataSource {
-  final FirebaseAuth _auth;
-  FirebaseAuthDataSource({FirebaseAuth? auth})
-    : _auth = auth ?? FirebaseAuth.instance;
+  final FirebaseAuth auth;
+  FirebaseAuthDataSource(this.auth);
 
-  Stream<User?> authStateChanges() => _auth.authStateChanges();
-  User? currentUser() => _auth.currentUser;
+  Stream<String?> observeUid() => auth.authStateChanges().map((u) => u?.uid);
 
-  Future<void> signIn({required String email, required String password}) {
-    return _auth.signInWithEmailAndPassword(email: email, password: password);
+  String? currentUid() => auth.currentUser?.uid;
+
+  Future<void> signIn({required String email, required String password}) async {
+    await auth.signInWithEmailAndPassword(email: email, password: password);
   }
 
-  Future<UserCredential> signUp({
+  Future<void> signUp({
     required String email,
     required String password,
-  }) {
-    return _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    required String fullName,
+    required String cpfDigitsOnly,
+  }) async {
+    await auth.createUserWithEmailAndPassword(email: email, password: password);
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() => auth.signOut();
 }

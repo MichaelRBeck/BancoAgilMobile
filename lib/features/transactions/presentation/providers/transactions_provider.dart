@@ -4,7 +4,7 @@ import '../../domain/entities/transaction.dart';
 import '../../domain/usecases/calc_totals.dart';
 import '../../domain/usecases/delete_transaction.dart';
 import '../../domain/usecases/get_transactions_page.dart';
-import '../providers/transactions_filters_provider.dart';
+import 'transactions_filters_provider.dart';
 import 'transactions_state.dart';
 
 class TransactionsProvider extends ChangeNotifier {
@@ -58,6 +58,16 @@ class TransactionsProvider extends ChangeNotifier {
     }
   }
 
+  String? _normalizedType() {
+    final t = _filters?.type.trim() ?? '';
+    return t.isEmpty ? null : t;
+  }
+
+  String? _normalizedCounterpartyCpf() {
+    final c = _filters?.counterpartyCpf.trim() ?? '';
+    return c.isEmpty ? null : c;
+  }
+
   Future<void> refresh() async {
     final uid = _uid;
     if (uid == null || uid.isEmpty) {
@@ -84,12 +94,10 @@ class TransactionsProvider extends ChangeNotifier {
     try {
       final result = await getPage(
         uid: uid,
-        type: (_filters?.type.trim().isEmpty ?? true)
-            ? null
-            : _filters!.type.trim(),
+        type: _normalizedType(),
         start: _filters?.start,
         end: _filters?.end,
-        counterpartyCpf: _filters?.counterpartyCpf ?? '',
+        counterpartyCpf: _normalizedCounterpartyCpf(),
         limit: _limit,
         startAfter: null,
       );
@@ -108,7 +116,6 @@ class TransactionsProvider extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      // mantém itens vazios e mostra erro
       _emit(
         _state.copyWith(
           status: TransactionsStatus.error,
@@ -131,6 +138,7 @@ class TransactionsProvider extends ChangeNotifier {
 
     final cursor = _state.cursor;
 
+    // Mantém items e apenas sinaliza loading
     _emit(
       _state.copyWith(status: TransactionsStatus.loading, clearError: true),
     );
@@ -138,12 +146,10 @@ class TransactionsProvider extends ChangeNotifier {
     try {
       final result = await getPage(
         uid: uid,
-        type: (_filters?.type.trim().isEmpty ?? true)
-            ? null
-            : _filters!.type.trim(),
+        type: _normalizedType(),
         start: _filters?.start,
         end: _filters?.end,
-        counterpartyCpf: _filters?.counterpartyCpf ?? '',
+        counterpartyCpf: _normalizedCounterpartyCpf(),
         limit: _limit,
         startAfter: cursor,
       );
@@ -165,21 +171,25 @@ class TransactionsProvider extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      // não zera lista no loadMore, só reporta erro e volta status
+      // Não zera lista no loadMore
       _emit(
         _state.copyWith(status: TransactionsStatus.error, error: e.toString()),
       );
-      // opcional: voltar para success se você não quer que UI “entre em erro”
       _emit(_state.copyWith(status: TransactionsStatus.success));
     }
   }
 
   Future<void> delete(String id) async {
+    final uid = _uid;
+    if (uid == null || uid.isEmpty) return;
+
     try {
-      await deleteTx(id);
+      await deleteTx(uid: uid, id: id);
+
       final next = _state.items
           .where((t) => t.id != id)
           .toList(growable: false);
+
       _emit(
         _state.copyWith(
           items: List.unmodifiable(next),
@@ -196,8 +206,6 @@ class TransactionsProvider extends ChangeNotifier {
   }
 
   TransactionsTotals _calcTotals(List<Transaction> items) {
-    // Se quiser deixar “by the book”, o ideal é totals ser um usecase separado.
-    // Mas pra fechar o requisito de state avançado, já está ótimo.
     final r = calcTotals(items);
     return TransactionsTotals(
       income: r.income,

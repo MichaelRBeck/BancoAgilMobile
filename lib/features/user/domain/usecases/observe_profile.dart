@@ -5,6 +5,7 @@ class ObserveProfile {
   final UserRepository repo;
   ObserveProfile(this.repo);
 
-  Stream<UserProfile> call({required String uid}) =>
-      repo.observeProfile(uid: uid);
+  Stream<UserProfile> call({required String uid}) {
+    return repo.observeProfile(uid: uid);
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../state/auth_provider.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 
 class SignOutAction extends StatelessWidget {
   const SignOutAction({super.key});

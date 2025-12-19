@@ -1,65 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../features/user/presentation/providers/user_provider.dart';
 
 class GreetingHeader extends StatelessWidget {
-  final String? firstName;
-
-  const GreetingHeader({super.key, this.firstName});
-
-  String _saudacao() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Bom dia';
-    if (h < 18) return 'Boa tarde';
-    return 'Boa noite';
-  }
+  const GreetingHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+    final user = context.watch<UserProvider>().user;
 
-    final greeting = (firstName == null || firstName!.trim().isEmpty)
-        ? '${_saudacao()}!'
-        : '${_saudacao()}, ${firstName!.trim()}';
+    final name = user?.fullName.split(' ').first ?? '';
 
-    return Card(
-      color: color,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    greeting,
-                    style: TextStyle(
-                      color: onPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    toBeginningOfSentenceCase(
-                      DateFormat(
-                        'MMMM \'de\' y',
-                        'pt_BR',
-                      ).format(DateTime.now()),
-                    )!,
-                    style: TextStyle(
-                      // ignore: deprecated_member_use
-                      color: onPrimary.withOpacity(.85),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Olá${name.isNotEmpty ? ', $name' : ''} 👋',
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          'Bem-vindo de volta',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ],
     );
   }
 }

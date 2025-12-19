@@ -1,39 +1,47 @@
+/*
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
-import '../features/auth/domain/entities/auth_user.dart';
-import '../features/auth/domain/usecases/observe_auth_state.dart';
+import '../features/auth/domain/usecases/observe_auth_uid.dart';
+import '../features/auth/domain/usecases/get_current_uid.dart';
 import '../features/auth/domain/usecases/sign_in.dart';
 import '../features/auth/domain/usecases/sign_out.dart';
 import '../features/auth/domain/usecases/sign_up.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final ObserveAuthState observeAuthState;
+  final ObserveAuthUid observeAuthUid;
+  final GetCurrentUid getCurrentUid;
   final SignIn signInUseCase;
   final SignUp signUpUseCase;
   final SignOut signOutUseCase;
 
-  AuthUser? _user;
+  String? _uid;
   bool _loading = true;
-  StreamSubscription<AuthUser?>? _sub;
+  StreamSubscription<String?>? _sub;
 
   AuthProvider({
-    required this.observeAuthState,
+    required this.observeAuthUid,
+    required this.getCurrentUid,
     required this.signInUseCase,
     required this.signUpUseCase,
     required this.signOutUseCase,
   }) {
-    _sub = observeAuthState().listen((u) {
-      _user = u;
+    _init();
+  }
+
+  Future<void> _init() async {
+    _uid = await getCurrentUid();
+    _sub?.cancel();
+    _sub = observeAuthUid().listen((uid) {
+      _uid = uid;
       _loading = false;
       notifyListeners();
     });
   }
 
-  AuthUser? get user => _user;
+  String? get uid => _uid;
   bool get isLoading => _loading;
-  bool get isLoggedIn => _user != null;
+  bool get isLoggedIn => _uid != null;
 
   Future<void> signIn({required String email, required String password}) {
     return signInUseCase(email: email, password: password);
@@ -61,3 +69,4 @@ class AuthProvider extends ChangeNotifier {
     super.dispose();
   }
 }
+*/

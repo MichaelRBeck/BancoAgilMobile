@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
 import '../../../transactions/domain/entities/transaction.dart';
-import 'analytics_repository.dart';
+import '../../domain/repositories/analytics_repository.dart';
 
 class AnalyticsRepositoryImpl implements AnalyticsRepository {
   static final DateFormat _ym = DateFormat('yyyy-MM');

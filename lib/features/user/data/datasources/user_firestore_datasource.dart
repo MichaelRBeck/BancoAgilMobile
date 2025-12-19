@@ -19,8 +19,8 @@ class UserFirestoreDataSource implements UserDataSource {
 
   @override
   Stream<UserProfileModel> observeProfile({required String uid}) {
-    return _col.doc(uid).snapshots().map((snap) {
-      final data = snap.data() ?? <String, dynamic>{};
+    return _col.doc(uid).snapshots().map((doc) {
+      final data = doc.data() ?? <String, dynamic>{};
       return UserProfileModel.fromMap(uid: uid, data: data);
     });
   }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/formatters.dart';
-import '../../../../state/filters_provider.dart';
+import '../../../../features/transactions/presentation/providers/transactions_filters_provider.dart';
 import '../../../../widgets/sign_out_action.dart';
 import '../../../../widgets/common/greeting_header.dart';
 
@@ -79,7 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  GreetingHeader(firstName: firstName),
+                  const GreetingHeader(),
                   const SizedBox(height: 12),
 
                   KpiCard(

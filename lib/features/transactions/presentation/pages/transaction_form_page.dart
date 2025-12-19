@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/utils/cpf_input_formatter.dart';
 import '../../../../widgets/common/receipt_attachment.dart';
-import '../../../../state/auth_provider.dart';
+
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../user/presentation/providers/user_provider.dart';
+
 import '../../domain/entities/transaction.dart';
 import '../providers/transaction_form_provider.dart';
 import '../providers/transactions_provider.dart';
@@ -85,8 +88,12 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       return;
     }
 
-    final uid = context.read<AuthProvider>().user?.uid;
-    if (uid == null || uid.isEmpty) {
+    final auth = context.read<AuthProvider>();
+    final profile = context.read<UserProvider>().user;
+
+    final uid = auth.uid;
+
+    if (uid == null || profile == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -99,6 +106,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
     try {
       await fp.save(
         uid: uid,
+        originCpf: profile.cpfDigits,
         isEditing: _isEditing,
         editing: widget.editing,
         type: _type,
@@ -112,7 +120,6 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
       if (!mounted) return;
 
       await context.read<TransactionsProvider>().refresh();
-      await context.read<TransactionsProvider>();
 
       if (!mounted) return;
       Navigator.pop(context);

@@ -1,5 +1,5 @@
 import '../models/transaction_model.dart';
-import '../dto/transactions_cursor_dto.dart'; // vamos criar já já
+import '../dto/transactions_cursor_dto.dart';
 
 class TransactionsPageDto {
   final List<TransactionModel> items;
@@ -24,9 +24,13 @@ abstract class TransactionsDataSource {
     String? counterpartyCpf,
   });
 
-  Future<void> create(TransactionModel model);
-  Future<void> update(TransactionModel model);
-  Future<void> delete(String id);
+  Future<void> create({required String uid, required TransactionModel model});
+  Future<void> update({required String uid, required TransactionModel model});
+  Future<void> delete({required String uid, required String id});
 
-  Future<void> updateTransferNotes({required String id, required String notes});
+  Future<void> updateTransferNotes({
+    required String uid,
+    required String id,
+    required String notes,
+  });
 }
