@@ -98,7 +98,6 @@ class TransactionModel extends Transaction {
     final data = doc.data() as Map<String, dynamic>;
     DateTime ts(x) => (x as fs.Timestamp).toDate();
 
-    // ✅ aceita os 2 nomes
     final cpfLower = data['counterpartyCpf'] as String?;
     final cpfUpper = data['counterPartyCpf'] as String?;
     final resolvedCpf = (cpfLower != null && cpfLower.isNotEmpty)

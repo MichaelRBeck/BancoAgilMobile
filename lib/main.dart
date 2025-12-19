@@ -18,7 +18,7 @@ import 'pages/login_page.dart';
 import 'pages/main_shell.dart';
 
 // -------------------------
-// AUTH (Clean)
+// AUTH
 // -------------------------
 import 'features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';

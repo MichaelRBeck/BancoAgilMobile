@@ -4,8 +4,7 @@ import '../../../../core/utils/cpf_validator.dart';
 abstract class UserProfileDataSource {
   Future<Map<String, dynamic>?> getProfileByUid(String uid);
 
-  /// Cria/atualiza o perfil do usuário (uid vem de fora)
-  /// e garante unicidade do CPF via cpfIndex/{cpf}
+  /// Cria/atualiza o perfil do usuário
   Future<void> upsertProfile({
     required String uid,
     required String email,

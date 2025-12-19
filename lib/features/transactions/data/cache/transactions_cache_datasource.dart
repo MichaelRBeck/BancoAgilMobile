@@ -7,16 +7,13 @@ import '../../../../core/security/hive_key_manager.dart';
 class TransactionsCacheDataSource {
   static const String boxName = 'transactions_cache_v1';
 
-  // ✅ Box dinâmica porque vamos salvar List<TransactionCacheModel>
   Future<Box<dynamic>> _box() async {
     final key = await HiveKeyManager.getOrCreateKey();
     return Hive.openBox<dynamic>(boxName, encryptionCipher: HiveAesCipher(key));
   }
 
-  String _keyForFirstPage({
-    required String uid,
-    required String signature, // inclui filtros/tipo/data/cpf etc
-  }) => 'user:$uid:firstPage:$signature';
+  String _keyForFirstPage({required String uid, required String signature}) =>
+      'user:$uid:firstPage:$signature';
 
   Future<List<TransactionModel>> readFirstPage({
     required String uid,
@@ -27,7 +24,6 @@ class TransactionsCacheDataSource {
     final raw = box.get(_keyForFirstPage(uid: uid, signature: signature));
     if (raw == null) return const [];
 
-    // ✅ Pode vir como List<dynamic>
     final list = (raw as List).cast<TransactionCacheModel>();
     if (list.isEmpty) return const [];
 
@@ -40,7 +36,7 @@ class TransactionsCacheDataSource {
             category: c.category,
             amount: c.amount,
             date: c.date,
-            notes: c.notes, // pode ser String? no seu TransactionModel
+            notes: c.notes,
             createdAt: c.createdAt,
             updatedAt: c.updatedAt,
           ),
@@ -86,7 +82,6 @@ class TransactionsCacheDataSource {
     }
   }
 
-  // opcional (útil pra debug ou logout)
   Future<void> clearAll() async {
     final box = await _box();
     await box.clear();

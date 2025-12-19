@@ -25,7 +25,7 @@ class TransactionsFirestoreDataSource implements TransactionsDataSource {
       case 'expense':
         return -v;
       default:
-        return 0; // transfer (saldo é tratado no ExecuteTransfer)
+        return 0;
     }
   }
 
@@ -62,7 +62,6 @@ class TransactionsFirestoreDataSource implements TransactionsDataSource {
         ? _digits(counterpartyCpf)
         : null;
 
-    // ✅ Se NÃO tem cpf => fluxo normal (rápido)
     if (cpfDigits == null || cpfDigits.isEmpty) {
       Query<Map<String, dynamic>> q = base;
       if (startAfter != null) {
@@ -87,7 +86,6 @@ class TransactionsFirestoreDataSource implements TransactionsDataSource {
       );
     }
 
-    // ✅ Se TEM cpf => scan e filtra localmente (compatível com dados antigos mascarados)
     final results = <TransactionModel>[];
 
     // controle de cursor do "scan"
@@ -129,10 +127,8 @@ class TransactionsFirestoreDataSource implements TransactionsDataSource {
       scanDate = (last.get('date') as Timestamp);
       scanDocId = last.id;
 
-      // cursor para próxima página do app: último documento SCANEADO
       nextCursor = TransactionsCursorDto(date: scanDate!, docId: scanDocId!);
 
-      // ainda pode ter mais se veio cheio
       hasMore = snap.docs.length == batchSize;
     }
 

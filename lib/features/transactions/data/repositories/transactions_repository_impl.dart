@@ -12,7 +12,6 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
   final TransactionsDataSource ds;
   final TransactionsCacheDataSource cache;
 
-  // Cache em memória (opcional)
   final _pageCache = <String, TransactionsPageResult>{};
 
   TransactionsRepositoryImpl(this.ds, this.cache);
@@ -40,18 +39,16 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
   bool _isFirstPage(TransactionsCursor? startAfter) => startAfter == null;
 
   Future<void> _invalidateAllForUser(String uid) async {
-    // 1) limpa memória
+    // limpa memória
     _pageCache.removeWhere((k, _) => k.startsWith('$uid|'));
 
-    // 2) limpa Hive (aguarda pra evitar corrida)
+    // limpa Hive (aguarda pra evitar corrida)
     await cache.clearUser(uid);
   }
 
   Future<void> _invalidateForEntity(Transaction entity) async {
-    // Sempre invalida o dono do registro (userId)
     await _invalidateAllForUser(entity.userId);
 
-    // Se for transfer, também invalida origin/dest (se existir)
     if (entity.type == 'transfer') {
       final originUid = (entity.originUid ?? '').trim();
       final destUid = (entity.destUid ?? '').trim();
@@ -87,7 +84,7 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
       limit: limit,
     );
 
-    // 0) cache em memória
+    // cache em memória
     final memCached = _pageCache[key];
     if (memCached != null) return memCached;
 
@@ -100,7 +97,7 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
       limit: limit,
     );
 
-    // 1) cache em disco SOMENTE para primeira página
+    // cache em disco SOMENTE para primeira página
     if (isFirst) {
       final cachedModels = await cache.readFirstPage(uid: uid, signature: sig);
       if (cachedModels.isNotEmpty) {
@@ -115,7 +112,7 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
       }
     }
 
-    // 2) fetch real
+    // fetch real
     final page = await ds.fetchPage(
       uid: uid,
       type: type,
@@ -134,10 +131,10 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
       hasMore: page.hasMore,
     );
 
-    // 2.1) salva em memória
+    // salva em memória
     _pageCache[key] = result;
 
-    // 3) escreve cache em disco apenas 1ª página
+    // escreve cache em disco apenas 1ª página
     if (isFirst) {
       await cache.writeFirstPage(uid: uid, signature: sig, items: page.items);
     }
@@ -166,8 +163,6 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
   @override
   Future<void> delete(String id, {required String uid}) async {
     await ds.delete(uid: uid, id: id);
-
-    // delete não tem entity pra saber origin/dest; invalida ao menos o uid
     await _invalidateAllForUser(uid);
   }
 
@@ -184,7 +179,6 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
   }) async {
     await ds.updateTransferNotes(uid: uid, id: id, notes: notes);
 
-    // notas alteram listagem => invalida
     await _invalidateAllForUser(uid);
   }
 }

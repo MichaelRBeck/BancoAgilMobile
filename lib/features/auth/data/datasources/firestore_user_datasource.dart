@@ -15,7 +15,7 @@ class FirestoreUserDataSource {
     final ref = users.doc(uid);
     final snap = await ref.get();
 
-    // ✅ se não existe, cria completo
+    // se não existe, cria completo
     if (!snap.exists) {
       await ref.set({
         'fullName': fullName,
