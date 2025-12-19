@@ -80,6 +80,43 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
     }
   }
 
+  Future<void> _deleteEditing() async {
+    final t = widget.editing;
+    if (t == null) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir transação'),
+        content: Text(
+          'Tem certeza que deseja excluir "${t.category}" de ${t.amount.toStringAsFixed(2)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    await context.read<TransactionsProvider>().delete(t.id);
+
+    if (!mounted) return;
+    Navigator.pop(context); // volta da tela de edição
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Transação excluída')));
+  }
+
   Future<void> _save() async {
     final msg = _validate();
     if (msg != null) {
@@ -149,6 +186,7 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
     final fp = context.watch<TransactionFormProvider>();
     final editing = _isEditing;
     final isTransfer = _type == 'transfer';
+    final canDelete = editing && !isTransfer;
 
     return Scaffold(
       appBar: AppBar(
@@ -247,6 +285,18 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                   ),
                 ),
               ),
+
+              if (canDelete) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: fp.saving ? null : _deleteEditing,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Excluir transação'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -17,19 +17,6 @@ import '../../../../core/utils/cpf_input_formatter.dart';
 import 'transaction_form_page.dart';
 import '../../domain/entities/transaction.dart';
 
-class _Debouncer {
-  final Duration delay;
-  Timer? _t;
-  _Debouncer(this.delay);
-
-  void call(void Function() fn) {
-    _t?.cancel();
-    _t = Timer(delay, fn);
-  }
-
-  void dispose() => _t?.cancel();
-}
-
 enum _OrderMode { dataDesc, dataAsc, valorDesc, valorAsc }
 
 class TransactionsPage extends StatefulWidget {
@@ -42,7 +29,6 @@ class TransactionsPage extends StatefulWidget {
 class _TransactionsPageState extends State<TransactionsPage> {
   final _scroll = ScrollController();
   final _cpfCtrl = TextEditingController();
-  final _debounce = _Debouncer(const Duration(milliseconds: 400));
 
   _OrderMode _order = _OrderMode.dataDesc;
 
@@ -74,7 +60,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
   void dispose() {
     _scroll.dispose();
     _cpfCtrl.dispose();
-    _debounce.dispose();
     super.dispose();
   }
 
@@ -221,11 +206,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
               ),
               keyboardType: TextInputType.number,
               inputFormatters: const [CpfInputFormatter()],
-              onChanged: (v) => _debounce(
-                () => filters.setCounterpartyCpf(CpfInputFormatter.digits(v)),
-              ),
-              onFieldSubmitted: (v) =>
-                  filters.setCounterpartyCpf(CpfInputFormatter.digits(v)),
+              onChanged: (v) => filters.setCounterpartyCpf(v),
+              onFieldSubmitted: (v) => filters.setCounterpartyCpf(v),
             ),
           )
         : const SizedBox.shrink();

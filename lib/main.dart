@@ -1,3 +1,4 @@
+import 'package:bancoagil/features/transactions/data/cache/transactions_cache_datasource.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,6 +11,8 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'firebase_options.dart';
 import 'core/utils/formatters.dart';
 import 'theme/app_theme.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'features/transactions/data/cache/transaction_cache_model.dart';
 
 import 'pages/login_page.dart';
 import 'pages/main_shell.dart';
@@ -75,6 +78,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    await Hive.initFlutter();
+    Hive.registerAdapter(TransactionCacheModelAdapter());
     await dotenv.load(fileName: ".env");
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -192,24 +197,41 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionsFiltersProvider()),
 
         // -------------------------
+        // Transactions Cache (Hive)
+        // -------------------------
+        Provider<TransactionsCacheDataSource>(
+          create: (_) => TransactionsCacheDataSource(),
+        ),
+
+        // -------------------------
         // Transactions (Data/Repo/Usecases)
         // -------------------------
+        Provider<TransactionsCacheDataSource>(
+          create: (_) => TransactionsCacheDataSource(),
+        ),
+
         Provider<TransactionsDataSource>(
           create: (ctx) =>
               TransactionsFirestoreDataSource(ctx.read<fs.FirebaseFirestore>()),
         ),
+
         Provider<TransactionsRepository>(
-          create: (ctx) =>
-              TransactionsRepositoryImpl(ctx.read<TransactionsDataSource>()),
+          create: (ctx) => TransactionsRepositoryImpl(
+            ctx.read<TransactionsDataSource>(),
+            ctx.read<TransactionsCacheDataSource>(),
+          ),
         ),
+
         Provider<GetTransactionsPage>(
           create: (ctx) =>
               GetTransactionsPage(ctx.read<TransactionsRepository>()),
         ),
+
         Provider<DeleteTransaction>(
           create: (ctx) =>
               DeleteTransaction(ctx.read<TransactionsRepository>()),
         ),
+
         Provider<CalcTotals>(create: (_) => CalcTotals()),
 
         ChangeNotifierProxyProvider2<

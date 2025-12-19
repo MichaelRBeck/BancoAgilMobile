@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:bancoagil/features/transactions/domain/entities/transactions_page_result.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/transaction.dart';
@@ -21,7 +24,6 @@ class TransactionsProvider extends ChangeNotifier {
   TransactionsState _state = TransactionsState.initial();
   TransactionsState get state => _state;
 
-  // ✅ Getters compatíveis (pra não quebrar tela)
   List<Transaction> get items => _state.items;
   bool get loading => _state.status == TransactionsStatus.loading;
   bool get end => !_state.hasMore;
@@ -32,12 +34,22 @@ class TransactionsProvider extends ChangeNotifier {
   double get sumTransferNet => _state.totals.transferNet;
 
   String? get error => _state.error;
-  String? _filtersSig;
 
+  String? _filtersSig;
   String? _uid;
   TransactionsFiltersProvider? _filters;
 
+  StreamSubscription<String>? _filtersSub;
+
   static const int _limit = 20;
+
+  // ----------------------------
+  // Prefetch (pré-carregamento)
+  // ----------------------------
+  bool _prefetching = false;
+  TransactionsPageResult? _prefetched;
+  String? _prefetchKey;
+  // ----------------------------
 
   void _emit(TransactionsState s) {
     _state = s;
@@ -46,14 +58,36 @@ class TransactionsProvider extends ChangeNotifier {
 
   void apply(String? uid, TransactionsFiltersProvider filters) {
     final uidChanged = uid != _uid;
-    final newSig = filters.signature;
-    final sigChanged = newSig != _filtersSig;
+    final filtersInstanceChanged = !identical(filters, _filters);
 
     _uid = uid;
     _filters = filters;
-    _filtersSig = newSig;
 
-    if (uidChanged || sigChanged) {
+    // (1) assina o Stream reativo do provider de filtros
+    if (filtersInstanceChanged) {
+      _filtersSub?.cancel();
+      _filtersSub = filters.changes.listen((sig) {
+        // evita refresh duplicado desnecessário
+        if (sig == _filtersSig) return;
+        _filtersSig = sig;
+
+        _clearPrefetch();
+        refresh();
+      });
+    }
+
+    // (2) garante refresh quando troca de usuário (login/logout)
+    if (uidChanged) {
+      _filtersSig = filters.signature; // atualiza sig base
+      _clearPrefetch();
+      refresh();
+      return;
+    }
+
+    // (3) primeira aplicação (ex: tela abriu) — se nunca carregou ainda
+    if (_filtersSig == null) {
+      _filtersSig = filters.signature;
+      _clearPrefetch();
       refresh();
     }
   }
@@ -68,9 +102,24 @@ class TransactionsProvider extends ChangeNotifier {
     return c.isEmpty ? null : c;
   }
 
+  String _contextKey({required String uid, required String cursorId}) {
+    final type = _normalizedType() ?? '';
+    final start = _filters?.start?.millisecondsSinceEpoch ?? 0;
+    final end = _filters?.end?.millisecondsSinceEpoch ?? 0;
+    final cpf = _normalizedCounterpartyCpf() ?? '';
+    return '$uid|$type|$start|$end|$cpf|$cursorId';
+  }
+
+  void _clearPrefetch() {
+    _prefetching = false;
+    _prefetched = null;
+    _prefetchKey = null;
+  }
+
   Future<void> refresh() async {
     final uid = _uid;
     if (uid == null || uid.isEmpty) {
+      _clearPrefetch();
       _emit(
         TransactionsState.initial().copyWith(
           hasMore: true,
@@ -79,6 +128,8 @@ class TransactionsProvider extends ChangeNotifier {
       );
       return;
     }
+
+    _clearPrefetch();
 
     _emit(
       _state.copyWith(
@@ -115,6 +166,8 @@ class TransactionsProvider extends ChangeNotifier {
           clearError: true,
         ),
       );
+
+      _maybePrefetchNext();
     } catch (e) {
       _emit(
         _state.copyWith(
@@ -137,8 +190,36 @@ class TransactionsProvider extends ChangeNotifier {
     if (uid == null || uid.isEmpty) return;
 
     final cursor = _state.cursor;
+    if (cursor == null) return;
 
-    // Mantém items e apenas sinaliza loading
+    final key = _contextKey(uid: uid, cursorId: cursor.docId);
+
+    if (_prefetched != null && _prefetchKey == key) {
+      final result = _prefetched!;
+      _prefetched = null;
+      _prefetchKey = null;
+
+      final merged = List<Transaction>.unmodifiable([
+        ..._state.items,
+        ...result.items,
+      ]);
+
+      _emit(
+        _state.copyWith(
+          status: TransactionsStatus.success,
+          items: merged,
+          cursor: result.nextCursor,
+          hasMore: result.hasMore,
+          totals: _calcTotals(merged),
+          totalsLoading: false,
+          clearError: true,
+        ),
+      );
+
+      _maybePrefetchNext();
+      return;
+    }
+
     _emit(
       _state.copyWith(status: TransactionsStatus.loading, clearError: true),
     );
@@ -170,13 +251,53 @@ class TransactionsProvider extends ChangeNotifier {
           clearError: true,
         ),
       );
+
+      _maybePrefetchNext();
     } catch (e) {
-      // Não zera lista no loadMore
       _emit(
         _state.copyWith(status: TransactionsStatus.error, error: e.toString()),
       );
       _emit(_state.copyWith(status: TransactionsStatus.success));
     }
+  }
+
+  void _maybePrefetchNext() {
+    if (_prefetching) return;
+
+    final uid = _uid;
+    if (uid == null || uid.isEmpty) return;
+
+    if (!_state.hasMore) return;
+
+    final cursor = _state.cursor;
+    if (cursor == null) return;
+
+    final key = _contextKey(uid: uid, cursorId: cursor.docId);
+    if (_prefetchKey == key && _prefetched != null) return;
+
+    _prefetching = true;
+    _prefetchKey = key;
+
+    () async {
+      try {
+        final result = await getPage(
+          uid: uid,
+          type: _normalizedType(),
+          start: _filters?.start,
+          end: _filters?.end,
+          counterpartyCpf: _normalizedCounterpartyCpf(),
+          limit: _limit,
+          startAfter: cursor,
+        );
+
+        if (_prefetchKey != key) return;
+        _prefetched = result;
+      } catch (_) {
+        // ignora falhas do prefetch
+      } finally {
+        if (_prefetchKey == key) _prefetching = false;
+      }
+    }();
   }
 
   Future<void> delete(String id) async {
@@ -190,6 +311,8 @@ class TransactionsProvider extends ChangeNotifier {
           .where((t) => t.id != id)
           .toList(growable: false);
 
+      _clearPrefetch();
+
       _emit(
         _state.copyWith(
           items: List.unmodifiable(next),
@@ -197,6 +320,8 @@ class TransactionsProvider extends ChangeNotifier {
           clearError: true,
         ),
       );
+
+      _maybePrefetchNext();
     } catch (e) {
       _emit(
         _state.copyWith(error: e.toString(), status: TransactionsStatus.error),
@@ -212,5 +337,11 @@ class TransactionsProvider extends ChangeNotifier {
       expense: r.expense,
       transferNet: r.transferNet,
     );
+  }
+
+  @override
+  void dispose() {
+    _filtersSub?.cancel();
+    super.dispose();
   }
 }
