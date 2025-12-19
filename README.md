@@ -1,147 +1,175 @@
 # BancoÁgil 📱
 
-Aplicativo mobile de **gerenciamento financeiro** desenvolvido em **Flutter**.  
+Aplicativo mobile de **gerenciamento financeiro** desenvolvido em **Flutter**, concebido como parte de um **Tech Challenge acadêmico**, com foco na aplicação prática de **Clean Architecture**, **gerenciamento avançado de estado**, **programação reativa**, **otimização de performance** e **segurança no desenvolvimento**.
 
-Principais funcionalidades:  
-- Login com Firebase Authentication  
-- Cadastro, edição e listagem de transações  
-- Transferências entre usuários com validação de saldo  
-- Upload de recibos (salvos em base64)  
-- Dashboard com gráficos (linha e pizza) mostrando receitas, despesas e transferências  
-- Filtros e ordenação de transações (por tipo, valor, data, etc.)  
-- Scroll infinito para lidar com grandes volumes de dados  
+O projeto foi estruturado visando **escalabilidade**, **manutenibilidade**, **separação de responsabilidades** e **boa experiência do usuário**, seguindo boas práticas de engenharia de software e arquitetura front-end moderna.
 
 ---
 
-## Tecnologias utilizadas
-- **Flutter / Dart**  
-- **Firebase (Auth e Firestore)**  
-- **Provider** para gerenciamento de estado  
-- **fl_chart** para os gráficos  
-- **image_picker** e **flutter_image_compress** para recibos  
-- **intl** para formatação de moeda/data  
-- **flutter_dotenv** para variáveis de ambiente  
+## Principais Funcionalidades
+
+- **Autenticação segura** com Firebase Authentication.
+- **CRUD completo**: Cadastro, edição e exclusão de transações financeiras.
+- **Transferências entre usuários** com:
+  - Validação de saldo.
+  - Validação de CPF.
+  - Controle transacional e integridade dos dados.
+- **Dashboard financeiro** com gráficos analíticos.
+- **Upload e visualização de recibos** (armazenados em base64).
+- **Filtros dinâmicos** e ordenação de transações.
+- **Paginação com scroll infinito**.
+- **Interface reativa** e sincronizada com o estado da aplicação.
 
 ---
 
-## Estrutura do projeto
-```
+## Tecnologias Utilizadas
+
+- **Flutter / Dart**
+- **Firebase Authentication** (Autenticação)
+- **Cloud Firestore** (Banco de dados NoSQL)
+- **Provider** (Gerenciamento de Estado)
+- **Streams e ChangeNotifier** (Programação Reativa)
+- **fl_chart** (Visualização de dados/gráficos)
+- **image_picker** e **flutter_image_compress** (Manipulação de imagens)
+- **intl** (Formatação de datas e valores monetários)
+- **flutter_dotenv** (Gerenciamento de variáveis de ambiente)
+
+---
+
+## Arquitetura e Organização do Código
+
+O projeto adota os princípios da **Clean Architecture**, promovendo uma separação clara entre as camadas da aplicação.
+
+### Estrutura em Camadas
+
+- **Presentation**: Contém Widgets, Pages e os Providers (State Management).
+- **Domain**: Contém Entidades, Casos de Uso (Use Cases) e os Contratos (Interfaces) de Repositórios.
+- **Data / Infrastructure**: Contém Datasources (Firestore), Models e as Implementações dos Repositórios.
+
+**Benefícios:** Baixo acoplamento, alta coesão, facilidade de testes e evolução segura da aplicação.
+
+---
+
+## Gerenciamento Avançado de Estado
+
+- Uso de **Provider + ChangeNotifier**.
+- Providers especializados por contexto (Autenticação, Perfil, Transações, Filtros).
+- Separação clara entre **estado de UI**, **estado de domínio** e **estado derivado**.
+- Fluxo de dados previsível e rastreável.
+
+---
+
+## Programação Reativa
+
+A aplicação garante uma interface responsiva através de:
+
+- Uso de **Streams** para observar alterações em tempo real no Firestore.
+- Reatividade a mudanças de filtros, paginação e atualizações de saldo.
+- UI sempre sincronizada com a fonte de dados (Single Source of Truth).
+- Eliminação de estados inconsistentes entre telas.
+
+---
+
+## Performance e Otimização
+
+- **Lazy Loading**: Carregamento sob demanda na listagem de transações.
+- **Prefetch**: Pré-carregamento de páginas subsequentes.
+- **Cache em memória**: Redução de chamadas redundantes ao banco de dados.
+- **Scroll infinito**: Otimização para grandes volumes de dados.
+- **Rebuilds seletivos**: Uso de seletores para evitar renderizações desnecessárias.
+
+---
+
+## Segurança no Desenvolvimento
+
+- **Isolamento de dados**: Garantia de que um usuário nunca acesse dados de outro.
+- **Regras de Segurança do Firestore**:
+  - Leitura e escrita permitidas apenas para o proprietário do documento (`request.auth.uid`).
+  - Transferências controladas via regras de servidor.
+- **Normalização**: CPF armazenado apenas em formato numérico para padronização.
+- **Proteção de Credenciais**: Uso de variáveis de ambiente (`.env`) para chaves sensíveis.
+
+---
+
+## Estrutura do Projeto (Pastas)
+
+```text
 lib/
-  pages/
-    main_shell.dart
-    login_page.dart
-    dashboard_page.dart
-    transactions_page.dart
-    transaction_form_page.dart
-    receipt_viewer_page.dart
-  widgets/
-    charts/
-      line_chart_widget.dart
-      pie_chart_widget.dart
-    transactions/
-      filters_bar.dart
-    common/
-      greeting_header.dart
-      kpi_card.dart
-      totals_bar.dart
-      receipt_attachment.dart
-    sign_out_action.dart
-  state/
-    auth_provider.dart
-    user_provider.dart
-    filters_provider.dart
-    transactions_provider.dart
-  services/
-    transactions_service.dart
-    transfer_local_service.dart
-  utils/
-    animated_routes.dart
-    cpf_input_formatter.dart
-    cpf_validator.dart
-    formatters.dart
-  firebase_options.dart
-```
-
----
+ ├── features/
+ │    ├── auth/
+ │    ├── user/
+ │    └── transactions/
+ │         ├── domain/ (entities, repositories, usecases)
+ │         ├── data/ (datasources, models, repositories)
+ │         └── presentation/ (pages, providers, widgets)
+ ├── widgets/ (common components)
+ ├── core/ (utils, constants, themes)
+ ├── firebase_options.dart
+ └── main.dart
+ ```
 
 ## Configuração do Firebase
+1) Criar Projeto no Firebase
+Ative o Authentication (método E-mail/Senha).
+Crie o banco de dados Cloud Firestore.
+Registre o app Android/iOS para obter os IDs.
+2) Configurar Variáveis de Ambiente
+Crie um arquivo .env na raiz do projeto seguindo o modelo:
 
-### 1) Criar projeto no Firebase
-- Ativar **Authentication** (e-mail/senha)  
-- Criar **Firestore Database**  
-- Pegar as credenciais em **Configurações do Projeto > Seus Apps**  
+**env**
+**FIREBASE_ANDROID_API_KEY=sua_chave_aqui**
+**FIREBASE_ANDROID_APP_ID=seu_app_id**
+**FIREBASE_ANDROID_MESSAGING_SENDER_ID=seu_id**
+**FIREBASE_ANDROID_PROJECT_ID=seu_projeto_id**
+**FIREBASE_ANDROID_STORAGE_BUCKET=seu_bucket**
 
-### 2) Arquivo `.env`
-Crie um arquivo `.env` na raiz do projeto com as credenciais:  
+Para aplicar as configurações:
 
-`.env.example`
-```env
-# Firebase Android
-FIREBASE_ANDROID_API_KEY=
-FIREBASE_ANDROID_APP_ID=
-FIREBASE_ANDROID_MESSAGING_SENDER_ID=
-FIREBASE_ANDROID_PROJECT_ID=
-FIREBASE_ANDROID_STORAGE_BUCKET=
-```
+**cp .env.example .env**
 
-Copiar o modelo:  
-```bash
-cp .env.example .env
-```
-E preencher com os valores reais.
 
----
+# Como Executar o Projeto
 
-## Como rodar o projeto
-
-```bash
-# baixar dependências
+# Instalar dependências
 flutter pub get
 
-# rodar no emulador/dispositivo
-flutter run
+# Executar o projeto
+
+**flutter run**
+
+**Regras de Segurança (Firestore)**
+
+Exemplo das regras aplicadas no console do Firebase:
 ```
----
-
-## Funcionalidades
-- **Dashboard**: visão geral do saldo e gráficos de receitas, despesas e transferências  
-- **Transações**: listagem com filtros e ordenação (mais recente, mais antigo, maior valor, menor valor)  
-- **Formulário**: adicionar/editar transação com recibo (em base64), validações de saldo e CPF em transferências  
-- **Autenticação**: login e controle de sessão do usuário  
-
----
-
-## Regras de segurança (Firestore)
-Exemplo de regra simples para garantir que cada usuário só acesse suas transações:
-
-```
-// Exemplo inicial, ajustar conforme necessidade
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /transactions/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+
+    function isSignedIn() {
+      return request.auth != null;
     }
+
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, create, update: if request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /transactions/{id} {
+      allow read, create: if request.auth.uid == resource.data.userId;
+      allow update, delete: if request.auth.uid == resource.data.userId
+        && resource.data.type != 'transfer';
     }
   }
 }
 ```
 
----
+## Scripts Úteis
 
-## Scripts úteis
+**flutter clean          # Limpa o build**
+**flutter pub upgrade    # Atualiza pacotes**
+**dart format .          # Formata o código conforme padrões Dart**
+**flutter build apk      # Gera o executável para Android**
 
-```bash
-flutter clean         # limpar cache
-flutter pub get       # baixar pacotes
-flutter pub upgrade   # atualizar pacotes
-dart format .         # formatar código
-flutter build apk     # gerar APK release
-```
-
----
-
-## Observações
-- O app está configurado para salvar recibos em base64 no Firestore devido ao custo adicional para usar o Firebase Storage. 
+## Observações Finais
+Armazenamento de Imagens: Os recibos são convertidos para base64 e salvos no Firestore para simplificar a estrutura e custos iniciais (evitando o Firebase Storage neste MVP).
+Tech Challenge: O projeto atende integralmente aos requisitos acadêmicos, com foco em arquitetura profissional e escalável.
