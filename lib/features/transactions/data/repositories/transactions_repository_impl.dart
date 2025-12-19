@@ -172,6 +172,11 @@ class TransactionsRepositoryImpl implements TransactionsRepository {
   }
 
   @override
+  Future<void> invalidateUserCache(String uid) async {
+    _invalidateAllForUser(uid);
+  }
+
+  @override
   Future<void> updateTransferNotes({
     required String id,
     required String notes,

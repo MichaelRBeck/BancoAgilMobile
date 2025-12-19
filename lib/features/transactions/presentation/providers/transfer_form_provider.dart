@@ -19,8 +19,9 @@ class TransferFormProvider extends ChangeNotifier {
     required String destCpf,
     required double amount,
     String? description,
+    String? destName, // ✅ novo (opcional)
   }) async {
-    if (_loading) return; // evita double submit
+    if (_loading) return;
 
     _loading = true;
     _error = null;

@@ -15,6 +15,7 @@ class TransactionsFirestoreDataSource implements TransactionsDataSource {
       firestore.collection('users').doc(uid);
 
   bool _isNewId(String id) => id.isEmpty || id == 'new';
+  String _digits(String s) => s.replaceAll(RegExp(r'\D'), '');
 
   double _impactFor(String type, double amount) {
     final v = amount.abs();
@@ -38,43 +39,105 @@ class TransactionsFirestoreDataSource implements TransactionsDataSource {
     TransactionsCursorDto? startAfter,
     String? counterpartyCpf,
   }) async {
-    Query<Map<String, dynamic>> q = _col
+    Query<Map<String, dynamic>> base = _col
         .where('userId', isEqualTo: uid)
         .orderBy('date', descending: true)
         .orderBy(FieldPath.documentId, descending: true);
 
     if (type != null && type.isNotEmpty) {
-      q = q.where('type', isEqualTo: type);
+      base = base.where('type', isEqualTo: type);
     }
     if (start != null) {
-      q = q.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start));
+      base = base.where(
+        'date',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+      );
     }
     if (end != null) {
-      q = q.where('date', isLessThanOrEqualTo: Timestamp.fromDate(end));
-    }
-    if (counterpartyCpf != null && counterpartyCpf.isNotEmpty) {
-      q = q.where('counterpartyCpf', isEqualTo: counterpartyCpf);
-    }
-    if (startAfter != null) {
-      q = q.startAfter([startAfter.date, startAfter.docId]);
+      base = base.where('date', isLessThanOrEqualTo: Timestamp.fromDate(end));
     }
 
-    final snap = await q.limit(limit).get();
+    final cpfDigits =
+        (counterpartyCpf != null && counterpartyCpf.trim().isNotEmpty)
+        ? _digits(counterpartyCpf)
+        : null;
 
-    final items = snap.docs.map(TransactionModel.fromDoc).toList();
+    // ✅ Se NÃO tem cpf => fluxo normal (rápido)
+    if (cpfDigits == null || cpfDigits.isEmpty) {
+      Query<Map<String, dynamic>> q = base;
+      if (startAfter != null) {
+        q = q.startAfter([startAfter.date, startAfter.docId]);
+      }
 
-    final lastDoc = snap.docs.isEmpty ? null : snap.docs.last;
-    final nextCursor = lastDoc == null
-        ? null
-        : TransactionsCursorDto(
-            date: (lastDoc.get('date') as Timestamp),
-            docId: lastDoc.id,
-          );
+      final snap = await q.limit(limit).get();
+      final items = snap.docs.map(TransactionModel.fromDoc).toList();
 
-    final hasMore = snap.docs.length == limit;
+      final lastDoc = snap.docs.isEmpty ? null : snap.docs.last;
+      final nextCursor = lastDoc == null
+          ? null
+          : TransactionsCursorDto(
+              date: (lastDoc.get('date') as Timestamp),
+              docId: lastDoc.id,
+            );
+
+      return TransactionsPageDto(
+        items: items,
+        nextCursor: nextCursor,
+        hasMore: snap.docs.length == limit,
+      );
+    }
+
+    // ✅ Se TEM cpf => scan e filtra localmente (compatível com dados antigos mascarados)
+    final results = <TransactionModel>[];
+
+    // controle de cursor do "scan"
+    Timestamp? scanDate = startAfter?.date;
+    String? scanDocId = startAfter?.docId;
+
+    // batch maior para reduzir roundtrips
+    const int batchSize = 60;
+
+    bool hasMore = true;
+    TransactionsCursorDto? nextCursor;
+
+    while (results.length < limit && hasMore) {
+      Query<Map<String, dynamic>> q = base;
+
+      if (scanDate != null && scanDocId != null) {
+        q = q.startAfter([scanDate, scanDocId]);
+      }
+
+      final snap = await q.limit(batchSize).get();
+      if (snap.docs.isEmpty) {
+        hasMore = false;
+        break;
+      }
+
+      for (final d in snap.docs) {
+        final data = d.data();
+        final c1 = _digits((data['counterpartyCpf'] ?? '').toString());
+        final c2 = _digits((data['originCpf'] ?? '').toString());
+        final c3 = _digits((data['destCpf'] ?? '').toString());
+
+        if (c1 == cpfDigits || c2 == cpfDigits || c3 == cpfDigits) {
+          results.add(TransactionModel.fromDoc(d));
+          if (results.length >= limit) break;
+        }
+      }
+
+      final last = snap.docs.last;
+      scanDate = (last.get('date') as Timestamp);
+      scanDocId = last.id;
+
+      // cursor para próxima página do app: último documento SCANEADO
+      nextCursor = TransactionsCursorDto(date: scanDate!, docId: scanDocId!);
+
+      // ainda pode ter mais se veio cheio
+      hasMore = snap.docs.length == batchSize;
+    }
 
     return TransactionsPageDto(
-      items: items,
+      items: results,
       nextCursor: nextCursor,
       hasMore: hasMore,
     );

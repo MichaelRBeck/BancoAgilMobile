@@ -1,9 +1,8 @@
-import '../entities/transaction.dart';
-import '../repositories/transactions_repository.dart';
+import 'execute_transfer.dart';
 
 class CreateTransfer {
-  final TransactionsRepository repo;
-  CreateTransfer(this.repo);
+  final ExecuteTransfer exec;
+  CreateTransfer(this.exec);
 
   Future<void> call({
     required String originUid,
@@ -12,29 +11,12 @@ class CreateTransfer {
     required double amount,
     String? description,
   }) {
-    final now = DateTime.now();
-
-    final tx = Transaction(
-      id: '', // vazio para o datasource gerar docId (add)
-      userId: originUid, // dono do registro
-      type: 'transfer',
-      category: 'transfer',
-      amount: amount,
-      date: now,
-      notes: description,
-
+    return exec(
       originUid: originUid,
       originCpf: originCpf,
       destCpf: destCpf,
-
-      // você pode popular conforme sua regra atual:
-      status: 'completed',
-      counterpartyCpf: destCpf,
-
-      createdAt: now,
-      updatedAt: now,
+      amount: amount,
+      description: description,
     );
-
-    return repo.create(tx);
   }
 }

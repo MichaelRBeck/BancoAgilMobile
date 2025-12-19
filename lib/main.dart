@@ -158,7 +158,7 @@ class MyApp extends StatelessWidget {
               signUpUc: ctx.read<SignUp>(),
               signOutUc: ctx.read<SignOut>(),
             );
-            p.init(); // ✅ importante
+            p.init();
             return p;
           },
         ),
@@ -198,13 +198,6 @@ class MyApp extends StatelessWidget {
 
         // -------------------------
         // Transactions Cache (Hive)
-        // -------------------------
-        Provider<TransactionsCacheDataSource>(
-          create: (_) => TransactionsCacheDataSource(),
-        ),
-
-        // -------------------------
-        // Transactions (Data/Repo/Usecases)
         // -------------------------
         Provider<TransactionsCacheDataSource>(
           create: (_) => TransactionsCacheDataSource(),
@@ -261,7 +254,6 @@ class MyApp extends StatelessWidget {
         Provider<ExecuteTransfer>(
           create: (ctx) => ExecuteTransfer(
             firestore: ctx.read<fs.FirebaseFirestore>(),
-            userRepo: ctx.read<UserRepository>(),
             txRepo: ctx.read<TransactionsRepository>(),
           ),
         ),
@@ -278,7 +270,7 @@ class MyApp extends StatelessWidget {
               UpdateTransaction(ctx.read<TransactionsRepository>()),
         ),
         Provider<CreateTransfer>(
-          create: (ctx) => CreateTransfer(ctx.read<TransactionsRepository>()),
+          create: (ctx) => CreateTransfer(ctx.read<ExecuteTransfer>()),
         ),
 
         Provider<UpdateTransferNotes>(

@@ -24,53 +24,51 @@ class TransactionModel extends Transaction {
     required super.updatedAt,
   });
 
-  Transaction toEntity() {
-    return Transaction(
-      id: id,
-      userId: userId,
-      type: type,
-      category: category,
-      amount: amount,
-      date: date,
-      notes: notes,
-      receiptBase64: receiptBase64,
-      contentType: contentType,
-      originUid: originUid,
-      destUid: destUid,
-      originCpf: originCpf,
-      destCpf: destCpf,
-      status: status,
-      counterpartyUid: counterpartyUid,
-      counterpartyCpf: counterpartyCpf,
-      counterpartyName: counterpartyName,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
+  Transaction toEntity() => Transaction(
+    id: id,
+    userId: userId,
+    type: type,
+    category: category,
+    amount: amount,
+    date: date,
+    notes: notes,
+    receiptBase64: receiptBase64,
+    contentType: contentType,
+    originUid: originUid,
+    destUid: destUid,
+    originCpf: originCpf,
+    destCpf: destCpf,
+    status: status,
+    counterpartyUid: counterpartyUid,
+    counterpartyCpf: counterpartyCpf,
+    counterpartyName: counterpartyName,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+  );
 
-  factory TransactionModel.fromEntity(Transaction t) {
-    return TransactionModel(
-      id: t.id,
-      userId: t.userId,
-      type: t.type,
-      category: t.category,
-      amount: t.amount,
-      date: t.date,
-      notes: t.notes,
-      receiptBase64: t.receiptBase64,
-      contentType: t.contentType,
-      originUid: t.originUid,
-      destUid: t.destUid,
-      originCpf: t.originCpf,
-      destCpf: t.destCpf,
-      status: t.status,
-      counterpartyUid: t.counterpartyUid,
-      counterpartyCpf: t.counterpartyCpf,
-      counterpartyName: t.counterpartyName,
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    );
-  }
+  factory TransactionModel.fromEntity(Transaction t) => TransactionModel(
+    id: t.id,
+    userId: t.userId,
+    type: t.type,
+    category: t.category,
+    amount: t.amount,
+    date: t.date,
+    notes: t.notes,
+    receiptBase64: t.receiptBase64,
+    contentType: t.contentType,
+    originUid: t.originUid,
+    destUid: t.destUid,
+    originCpf: t.originCpf,
+    destCpf: t.destCpf,
+    status: t.status,
+    counterpartyUid: t.counterpartyUid,
+    counterpartyCpf: t.counterpartyCpf,
+    counterpartyName: t.counterpartyName,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  );
+
+  String _digits(String s) => s.replaceAll(RegExp(r'\D'), '');
 
   Map<String, dynamic> toMap() => {
     'userId': userId,
@@ -83,11 +81,14 @@ class TransactionModel extends Transaction {
     'contentType': contentType,
     'originUid': originUid,
     'destUid': destUid,
-    'originCpf': originCpf,
-    'destCpf': destCpf,
+    'originCpf': originCpf == null ? null : _digits(originCpf!),
+    'destCpf': destCpf == null ? null : _digits(destCpf!),
+    'counterpartyCpf': counterpartyCpf == null
+        ? null
+        : _digits(counterpartyCpf!),
     'status': status,
     'counterpartyUid': counterpartyUid,
-    'counterpartyCpf': counterpartyCpf,
+
     'counterpartyName': counterpartyName,
     'createdAt': fs.Timestamp.fromDate(createdAt),
     'updatedAt': fs.Timestamp.fromDate(updatedAt),
@@ -96,6 +97,13 @@ class TransactionModel extends Transaction {
   factory TransactionModel.fromDoc(fs.DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     DateTime ts(x) => (x as fs.Timestamp).toDate();
+
+    // ✅ aceita os 2 nomes
+    final cpfLower = data['counterpartyCpf'] as String?;
+    final cpfUpper = data['counterPartyCpf'] as String?;
+    final resolvedCpf = (cpfLower != null && cpfLower.isNotEmpty)
+        ? cpfLower
+        : (cpfUpper ?? '');
 
     return TransactionModel(
       id: doc.id,
@@ -113,7 +121,7 @@ class TransactionModel extends Transaction {
       destCpf: data['destCpf'] as String?,
       status: data['status'] as String?,
       counterpartyUid: data['counterpartyUid'] as String?,
-      counterpartyCpf: data['counterpartyCpf'] as String?,
+      counterpartyCpf: resolvedCpf.isEmpty ? null : resolvedCpf,
       counterpartyName: data['counterpartyName'] as String?,
       createdAt: ts(data['createdAt']),
       updatedAt: ts(data['updatedAt']),

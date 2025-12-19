@@ -23,4 +23,6 @@ abstract class TransactionsRepository {
     required String notes,
     required String uid,
   });
+
+  Future<void> invalidateUserCache(String uid);
 }

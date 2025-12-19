@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/cpf_input_formatter.dart';
-import '../../../../widgets/common/receipt_attachment.dart';
+import '../../../../core/utils/cpf_utils.dart';
 
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../user/presentation/providers/user_provider.dart';
 
 import '../../domain/entities/transaction.dart';
-import '../providers/transaction_form_provider.dart';
+import '../../domain/usecases/create_transaction.dart';
+import '../../domain/usecases/update_transaction.dart';
+import '../../domain/usecases/delete_transaction.dart';
+
 import '../providers/transactions_provider.dart';
+import '../providers/transaction_form_provider.dart';
+import '../providers/transfer_form_provider.dart';
+
+import '../../../../widgets/common/receipt_attachment.dart';
 
 class TransactionFormPage extends StatefulWidget {
   final Transaction? editing;
@@ -22,42 +28,42 @@ class TransactionFormPage extends StatefulWidget {
 class _TransactionFormPageState extends State<TransactionFormPage> {
   final _form = GlobalKey<FormState>();
 
-  String _type = 'expense';
-  String _category = '';
-  double? _amount;
-  DateTime _date = DateTime.now();
-  String _notes = '';
-
+  // transfer fields
   final _destCpfCtrl = TextEditingController();
 
+  // common fields
+  String _type = 'income';
+  String _category = '';
+  double? _amount;
+  String _notes = '';
+
+  bool _submitting = false;
+  String? _localError;
+
   bool get _isEditing => widget.editing != null;
-  bool get _isEditingTransfer =>
-      _isEditing && widget.editing!.type == 'transfer';
+  bool get _isTransfer => _type == 'transfer';
+  bool get _editingTransfer => _isEditing && widget.editing?.type == 'transfer';
+  bool get _canDelete => _isEditing && !_isTransfer;
 
   @override
   void initState() {
     super.initState();
 
-    final t = widget.editing;
-    if (t != null) {
-      _type = t.type;
-      _category = t.category;
-      _amount = t.amount;
-      _date = t.date;
-      _notes = (t.notes ?? '').trim();
+    final e = widget.editing;
+    if (e != null) {
+      _type = e.type;
+      _category = e.category;
+      _amount = e.amount;
+      _notes = e.notes ?? '';
 
-      if (t.type == 'transfer') {
-        final cpf = (t.counterpartyCpf ?? t.destCpf ?? '');
-        _destCpfCtrl.text = CpfInputFormatter.format(cpf);
+      if (e.type == 'transfer') {
+        // Preferir counterpartyCpf (destino do ponto de vista do origin),
+        // senão fallback para destCpf.
+        final cpfDigits = (e.counterpartyCpf?.trim().isNotEmpty ?? false)
+            ? (e.counterpartyCpf ?? '')
+            : (e.destCpf ?? '');
+        _destCpfCtrl.text = CpfInputFormatter.format(cpfDigits);
       }
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.read<TransactionFormProvider>().setInitialReceipt(
-          receiptBase64: t.receiptBase64,
-          contentType: t.contentType,
-        );
-      });
     }
   }
 
@@ -67,30 +73,81 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
     super.dispose();
   }
 
-  String? _validate() {
-    if (_type == 'transfer') {
-      final cpf = _destCpfCtrl.text.trim();
-      if (cpf.isEmpty) return 'Informe o CPF do destinatário';
-      if (_amount == null || _amount! <= 0) return 'Informe um valor positivo';
-      return null;
-    } else {
-      if (_amount == null || _amount! <= 0) return 'Informe um valor positivo';
-      if (_category.trim().isEmpty) return 'Informe a categoria';
-      return null;
+  Future<void> _save() async {
+    if (_submitting) return;
+    if (!(_form.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _submitting = true;
+      _localError = null;
+    });
+
+    try {
+      final up = context.read<UserProvider>().user;
+      final uid = (up?.uid ?? '').trim();
+      final cpf = (up?.cpfDigits ?? '').trim();
+
+      if (uid.isEmpty) {
+        throw Exception('Usuário não autenticado.');
+      }
+
+      if (_isTransfer) {
+        final destCpfDigits = CpfUtils.digits(_destCpfCtrl.text);
+
+        await context.read<TransferFormProvider>().submit(
+          originUid: uid,
+          originCpf: cpf,
+          destCpf: destCpfDigits,
+          amount: _amount ?? 0,
+          description: _notes.trim().isEmpty ? null : _notes.trim(),
+        );
+      } else {
+        final fp = context.read<TransactionFormProvider>(); // só para anexos
+        final now = DateTime.now();
+
+        final entity = Transaction(
+          id: widget.editing?.id ?? '',
+          userId: uid,
+          type: _type,
+          category: _category.trim().isEmpty ? _type : _category.trim(),
+          amount: _amount ?? 0,
+          date: widget.editing?.date ?? now,
+          notes: _notes,
+          receiptBase64: fp.receiptBase64,
+          contentType: fp.contentType,
+          createdAt: widget.editing?.createdAt ?? now,
+          updatedAt: now,
+        );
+
+        if (_isEditing) {
+          await context.read<UpdateTransaction>()(entity);
+        } else {
+          await context.read<CreateTransaction>()(entity);
+        }
+      }
+
+      if (!mounted) return;
+
+      await context.read<TransactionsProvider>().refresh();
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _localError = e.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   Future<void> _deleteEditing() async {
-    final t = widget.editing;
-    if (t == null) return;
+    if (_submitting) return;
+    final editing = widget.editing;
+    if (editing == null) return;
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Excluir transação'),
-        content: Text(
-          'Tem certeza que deseja excluir "${t.category}" de ${t.amount.toStringAsFixed(2)}?',
-        ),
+        content: const Text('Tem certeza que deseja excluir esta transação?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -106,91 +163,37 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
 
     if (ok != true) return;
 
-    await context.read<TransactionsProvider>().delete(t.id);
-
-    if (!mounted) return;
-    Navigator.pop(context); // volta da tela de edição
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Transação excluída')));
-  }
-
-  Future<void> _save() async {
-    final msg = _validate();
-    if (msg != null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-
-    final auth = context.read<AuthProvider>();
-    final profile = context.read<UserProvider>().user;
-
-    final uid = auth.uid;
-
-    if (uid == null || profile == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Usuário não autenticado.')));
-      return;
-    }
-
-    final fp = context.read<TransactionFormProvider>();
+    setState(() {
+      _submitting = true;
+      _localError = null;
+    });
 
     try {
-      await fp.save(
-        uid: uid,
-        originCpf: profile.cpfDigits,
-        isEditing: _isEditing,
-        editing: widget.editing,
-        type: _type,
-        category: _category.trim(),
-        amount: _amount!,
-        date: _date,
-        notes: _notes.trim(),
-        destCpf: _destCpfCtrl.text.trim(),
-      );
+      final up = context.read<UserProvider>().user;
+      final uid = (up?.uid ?? '').trim();
+      if (uid.isEmpty) throw Exception('Usuário não autenticado.');
+
+      await context.read<DeleteTransaction>()(uid: uid, id: editing.id);
 
       if (!mounted) return;
 
       await context.read<TransactionsProvider>().refresh();
-
-      if (!mounted) return;
       Navigator.pop(context);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _type == 'transfer'
-                ? (_isEditing
-                      ? 'Transferência atualizada!'
-                      : 'Transferência realizada!')
-                : (_isEditing ? 'Transação atualizada!' : 'Transação criada!'),
-          ),
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(fp.error ?? 'Erro: $e')));
+      setState(() => _localError = e.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final fp = context.watch<TransactionFormProvider>();
-    final editing = _isEditing;
-    final isTransfer = _type == 'transfer';
-    final canDelete = editing && !isTransfer;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(editing ? 'Editar Transação' : 'Nova Transação'),
+        title: Text(_isEditing ? 'Editar Transação' : 'Nova Transação'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -208,14 +211,14 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                     child: Text('Transferência'),
                   ),
                 ],
-                onChanged: _isEditingTransfer
+                onChanged: _editingTransfer
                     ? null
                     : (v) => setState(() => _type = v!),
                 decoration: const InputDecoration(labelText: 'Tipo'),
               ),
               const SizedBox(height: 12),
 
-              if (isTransfer) ...[
+              if (_isTransfer) ...[
                 TextFormField(
                   controller: _destCpfCtrl,
                   decoration: const InputDecoration(
@@ -223,12 +226,17 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: const [CpfInputFormatter()],
-                  enabled: !_isEditingTransfer,
+                  enabled: !_editingTransfer,
+                  validator: (v) {
+                    final d = CpfUtils.digits(v ?? '');
+                    if (d.length != 11) return 'CPF inválido';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
               ],
 
-              if (!isTransfer) ...[
+              if (!_isTransfer) ...[
                 TextFormField(
                   initialValue: _category,
                   decoration: const InputDecoration(labelText: 'Categoria'),
@@ -245,7 +253,12 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                 ),
                 onChanged: (v) =>
                     _amount = double.tryParse(v.replaceAll(',', '.')),
-                enabled: !_isEditingTransfer,
+                enabled: !_editingTransfer, // não editar valor em transfer
+                validator: (v) {
+                  final n = double.tryParse((v ?? '').replaceAll(',', '.'));
+                  if (n == null || n <= 0) return 'Informe um valor válido';
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
 
@@ -258,7 +271,8 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
               ),
               const SizedBox(height: 12),
 
-              if (!isTransfer) ...[
+              // anexos só para receita/despesa
+              if (!_isTransfer) ...[
                 ReceiptAttachment(
                   receiptBase64: fp.receiptBase64,
                   contentType: fp.contentType,
@@ -268,7 +282,12 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
                 const SizedBox(height: 12),
               ],
 
-              if (fp.error != null) ...[
+              if (_localError != null) ...[
+                const SizedBox(height: 8),
+                Text(_localError!, style: const TextStyle(color: Colors.red)),
+              ],
+
+              if (fp.error != null && _localError == null) ...[
                 const SizedBox(height: 8),
                 Text(fp.error!, style: const TextStyle(color: Colors.red)),
               ],
@@ -277,21 +296,21 @@ class _TransactionFormPageState extends State<TransactionFormPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: fp.saving ? null : _save,
+                  onPressed: _submitting ? null : _save,
                   child: Text(
-                    fp.saving
-                        ? (editing ? 'Atualizando...' : 'Salvando...')
-                        : (editing ? 'Salvar alterações' : 'Salvar'),
+                    _submitting
+                        ? (_isEditing ? 'Atualizando...' : 'Salvando...')
+                        : (_isEditing ? 'Salvar alterações' : 'Salvar'),
                   ),
                 ),
               ),
 
-              if (canDelete) ...[
+              if (_canDelete) ...[
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: fp.saving ? null : _deleteEditing,
+                    onPressed: _submitting ? null : _deleteEditing,
                     icon: const Icon(Icons.delete_outline),
                     label: const Text('Excluir transação'),
                   ),
