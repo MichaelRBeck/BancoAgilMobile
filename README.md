@@ -116,12 +116,11 @@ Registre o app Android/iOS para obter os IDs.
 2) Configurar Variáveis de Ambiente
 Crie um arquivo .env na raiz do projeto seguindo o modelo:
 
-**env**
-**FIREBASE_ANDROID_API_KEY=sua_chave_aqui**
-**FIREBASE_ANDROID_APP_ID=seu_app_id**
-**FIREBASE_ANDROID_MESSAGING_SENDER_ID=seu_id**
-**FIREBASE_ANDROID_PROJECT_ID=seu_projeto_id**
-**FIREBASE_ANDROID_STORAGE_BUCKET=seu_bucket**
+- **FIREBASE_ANDROID_API_KEY=sua_chave_aqui**
+- **FIREBASE_ANDROID_APP_ID=seu_app_id**
+- **FIREBASE_ANDROID_MESSAGING_SENDER_ID=seu_id**
+- **FIREBASE_ANDROID_PROJECT_ID=seu_projeto_id**
+- **FIREBASE_ANDROID_STORAGE_BUCKET=seu_bucket**
 
 Para aplicar as configurações:
 
@@ -165,10 +164,10 @@ service cloud.firestore {
 
 ## Scripts Úteis
 
-**flutter clean          # Limpa o build**
-**flutter pub upgrade    # Atualiza pacotes**
-**dart format .          # Formata o código conforme padrões Dart**
-**flutter build apk      # Gera o executável para Android**
+- **flutter clean          # Limpa o build**
+- **flutter pub upgrade    # Atualiza pacotes**
+- **dart format .          # Formata o código conforme padrões Dart**
+- **flutter build apk      # Gera o executável para Android**
 
 ## Observações Finais
 Armazenamento de Imagens: Os recibos são convertidos para base64 e salvos no Firestore para simplificar a estrutura e custos iniciais (evitando o Firebase Storage neste MVP).
